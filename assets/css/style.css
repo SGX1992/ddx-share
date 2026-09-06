@@ -29,7 +29,7 @@ img,canvas,svg{max-width:100%}
 .layout{
   display:grid;
   grid-template-columns:minmax(320px,440px) minmax(360px,600px);
-  grid-template-areas:"panel preview" "actions preview";
+  grid-template-areas:"brand preview" "panel preview" "actions preview";
   align-content:start;column-gap:56px;row-gap:24px;
   justify-content:center;align-items:start;
   padding:48px clamp(20px,5vw,72px);max-width:1240px;margin:0 auto;
@@ -37,14 +37,16 @@ img,canvas,svg{max-width:100%}
 /* The sheet is only a container on small screens. `display:contents` makes it
    vanish from the layout everywhere else, so the desktop grid is untouched. */
 .sheet{display:contents}
-.sheet__grab{display:none}
+.sheet__grab,.dock{display:none}
 
 .panel{grid-area:panel;display:flex;flex-direction:column;gap:18px;padding-top:8px}
 .preview{grid-area:preview;position:sticky;top:48px}
 .actions-area{grid-area:actions;display:flex;flex-direction:column;gap:12px}
 
-/* ---------- brand ---------- */
-.brand{display:flex;align-items:baseline;gap:12px;margin-bottom:26px}
+/* ---------- brand ----------
+   Its own grid area rather than a child of the panel: on phones the panel
+   travels off-screen inside the sheet, and anything inside it goes along. */
+.brand{grid-area:brand;display:flex;align-items:baseline;gap:12px;margin-bottom:26px}
 .brand-mark{width:76px;height:auto;display:block}
 
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
@@ -282,18 +284,23 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
      sheet that slides up over the bottom. The poster *shrinks* as the sheet
      opens rather than being covered by it — the whole point of editing here is
      watching the thing change, so it stays fully visible either way. */
-  .layout{display:block;padding:0;min-height:100dvh}
+  /* One number for the sheet's height, so the poster area can be derived from
+     it. Written twice they drift, and the poster ends up clipped by the sheet. */
+  .layout{display:block;padding:0;min-height:100dvh;--sheet-h:63dvh}
 
   .preview{
     position:fixed;left:0;right:0;top:0;z-index:1;
-    height:56dvh;display:flex;align-items:center;justify-content:center;
-    padding:14px 16px 6px;
+    height:calc(100dvh - 104px);display:flex;align-items:center;justify-content:center;
+    padding:calc(52px + env(safe-area-inset-top)) 16px 6px;
     transition:height .34s cubic-bezier(.22,.9,.25,1);
   }
-  body.sheet-open .preview{height:37dvh}
+  body.sheet-open .preview{height:calc(100dvh - var(--sheet-h));padding-top:calc(14px + env(safe-area-inset-top))}
   .preview-label,.hint{display:none}
-  .badge-card{height:100%;width:auto;aspect-ratio:1080/1350}
-  #previewCanvas{height:100%;width:auto;max-width:none}
+  /* Both dimensions auto with the ratio pinned, so the card fits inside
+     whichever bound it hits first. An explicit height:100% wins over max-width
+     and letterboxes the poster inside an oversized frame. */
+  .badge-card{height:auto;width:auto;max-width:100%;max-height:100%;aspect-ratio:1080/1350}
+  #previewCanvas{display:block;width:100%;height:auto}
 
   .sheet{
     display:flex;flex-direction:column;
@@ -301,7 +308,9 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
     max-height:63dvh;overflow-y:auto;overscroll-behavior:contain;
     background:#0A0A0A;border-top:1px solid var(--input-border);
     border-radius:20px 20px 0 0;box-shadow:0 -20px 60px rgba(0,0,0,.75);
-    padding:0 18px calc(18px + env(safe-area-inset-bottom));
+    /* No bottom padding here: it sits *below* the sticky bar inside the
+       scrollport, and content scrolls into that gap. The bar carries it. */
+    padding:0 18px;
     transform:translateY(calc(100% - var(--peek)));
     transition:transform .36s cubic-bezier(.22,.9,.25,1);
     --peek:62px;
@@ -320,11 +329,68 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
   .sheet__grab:active i{background:var(--accent)}
 
   .panel{padding-top:4px;gap:16px}
-  .brand{display:none}
-  .actions-area{margin-top:2px}
-  .actions .cta{flex:1;padding:14px 12px}
-  #webcamBtn{display:none}
   .thumb{max-width:none}
+
+  /* Centred above the poster with the editor closed, and out of the way once it
+     opens — the top band is worth more as poster than as a second wordmark, and
+     the poster carries the mark anyway. */
+  .brand{
+    position:fixed;z-index:3;margin:0;pointer-events:none;
+    top:calc(14px + env(safe-area-inset-top));left:50%;
+    transform:translateX(-50%);
+  }
+  .brand-mark{width:62px}
+  body.sheet-open .brand{opacity:0;transform:translateX(-50%) translateY(-10px)}
+
+  /* The download button stays put while the rest of the sheet scrolls under it. */
+  .actions-area{
+    position:sticky;bottom:0;z-index:2;
+    margin:6px -18px 0;padding:12px 18px calc(16px + env(safe-area-inset-bottom));
+    background:#0A0A0A;
+  }
+  /* A short fade above it, so fields scroll out of sight rather than being
+     chopped off by a hard edge. The bar itself has to stay opaque — a gradient
+     across the whole thing let the upload button show through the CTA. */
+  .actions-area::before{
+    content:"";position:absolute;left:0;right:0;bottom:100%;height:22px;
+    background:linear-gradient(rgba(10,10,10,0),#0A0A0A);pointer-events:none;
+  }
+  .actions .cta{flex:1;padding:15px 12px}
+  .ticket-line{margin-top:8px}
+
+  /* Collapsed, the handle is the one thing on screen asking to be tapped, so it
+     looks like a button instead of a hint. */
+  /* Collapsed, the sheet leaves the screen entirely and a separate pill invites
+     it back. The pill has to live *outside* the sheet: the sheet is moved with a
+     transform, and a transformed ancestor becomes the containing block for
+     position:fixed — put the pill inside and it slides off-screen with it. */
+  body:not(.sheet-open) .sheet{
+    transform:translateY(100%);
+    background:transparent;border-top:none;box-shadow:none;
+  }
+  body:not(.sheet-open) .sheet__grab{visibility:hidden}
+
+  /* Both actions stay reachable with the editor closed. Edit is the yellow one,
+     so saving never looks like the thing you are being pushed toward. */
+  .dock{
+    display:flex;gap:8px;justify-content:center;align-items:center;
+    position:fixed;z-index:6;left:0;right:0;
+    bottom:calc(20px + env(safe-area-inset-bottom));
+    padding:0 18px;
+  }
+  .dock button{
+    border-radius:999px;padding:14px 24px;border:none;cursor:pointer;
+    font-family:var(--font);font-size:14px;font-weight:600;white-space:nowrap;
+  }
+  .dock__edit{background:var(--accent);color:#0B0B0B;box-shadow:0 10px 30px rgba(255,242,4,.26)}
+  .dock__save{
+    background:rgba(18,18,18,.92);color:#fff;border:1px solid var(--input-border);
+    backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,.5);
+  }
+  .dock__save:disabled{opacity:.6;cursor:wait}
+  body.sheet-open .dock{
+    opacity:0;pointer-events:none;transform:translateY(14px);
+  }
 }
 
 @media (prefers-reduced-motion:reduce){

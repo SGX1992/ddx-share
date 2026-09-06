@@ -23,6 +23,11 @@
 <body>
 <main class="layout">
 
+  <header class="brand">
+      <img src="assets/img/ddx-wordmark.png" alt="DDX" class="brand-mark">
+  </header>
+
+
   <section class="preview">
     <p class="preview-label">Preview</p>
     <div class="badge-card">
@@ -41,16 +46,17 @@
     </div>
   </section>
 
+  <div class="dock" id="dock">
+    <button class="dock__save" id="dockSave" type="button">Download PNG</button>
+    <button class="dock__edit" id="sheetOpen" type="button" aria-controls="sheet">Edit your poster</button>
+  </div>
+
   <div class="sheet" id="sheet">
     <button class="sheet__grab" id="sheetGrab" type="button" aria-expanded="true" aria-controls="sheet">
-      <i></i><span id="sheetGrabLabel">Hide options</span>
+      <i></i><span>Hide options</span>
     </button>
 
   <section class="panel">
-    <header class="brand">
-      <img src="assets/img/ddx-wordmark.png" alt="DDX" class="brand-mark">
-    </header>
-
     <h1 class="sr-only">Make your DDX &ldquo;I am going&rdquo; post</h1>
 
     <div class="field">
@@ -107,6 +113,7 @@
           <span>Use Camera</span>
         </button>
         <input id="fileInput" type="file" accept="image/*" hidden>
+        <input id="cameraInput" type="file" accept="image/*" capture="user" hidden>
       </div>
 
       <div class="upload-bar" id="uploadBar" hidden>

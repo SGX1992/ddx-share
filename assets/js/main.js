@@ -347,7 +347,18 @@ fileInput.addEventListener('change', () => {
     stream = null;
     video.srcObject = null;
   };
+  /* On a phone the native camera is better than anything getUserMedia gives us:
+     full sensor resolution, the familiar shutter, and no permission dialog of
+     our own. `capture` opens it directly. Desktops get the in-page preview. */
+  const cameraInput = $('cameraInput');
+  cameraInput.addEventListener('change', () => {
+    acceptFile(cameraInput.files?.[0]);
+    cameraInput.value = '';
+  });
+  const nativeCamera = () => matchMedia('(pointer: coarse)').matches;
+
   webcamBtn.addEventListener('click', async () => {
+    if (nativeCamera()) return cameraInput.click();
     try {
       stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 1280 }, height: { ideal: 960 } },
@@ -491,15 +502,16 @@ fileInput.addEventListener('change', () => {
 {
   const sheet = $('sheet');
   const grab = $('sheetGrab');
-  const label = $('sheetGrabLabel');
+  const opener = $('sheetOpen');
   const setSheet = (open) => {
     document.body.classList.toggle('sheet-open', open);
     grab.setAttribute('aria-expanded', String(open));
-    label.textContent = open ? 'Hide options' : 'Edit your poster';
+    opener.setAttribute('aria-expanded', String(open));
     if (open) sheet.scrollTop = 0;
   };
   setSheet(true);
-  grab.addEventListener('click', () => setSheet(!document.body.classList.contains('sheet-open')));
+  grab.addEventListener('click', () => setSheet(false));
+  opener.addEventListener('click', () => setSheet(true));
 
   /* A flick on the handle does what a flick should, without dragging the sheet
      under the finger — the sheet scrolls its own content, and tracking both
@@ -537,7 +549,8 @@ function setStatus(msg) {
 async function run(button, job) {
   if (exporting) return;
   exporting = true;
-  mp4Btn.disabled = pngBtn.disabled = gifBtn.disabled = true;
+  const all = [mp4Btn, pngBtn, gifBtn, $('dockSave')];
+  for (const b of all) b.disabled = true;
   const label = button.innerHTML;
   try {
     setStatus(null);
@@ -550,21 +563,33 @@ async function run(button, job) {
     setStatus(`Export failed: ${err.message}`);
   } finally {
     button.innerHTML = label;
-    mp4Btn.disabled = pngBtn.disabled = gifBtn.disabled = false;
+    for (const b of all) b.disabled = false;
     exporting = false;
   }
 }
 
-pngBtn.addEventListener('click', () =>
-  run(pngBtn, async () => download(await toPng(poster), filename('png'))),
-);
-gifBtn.addEventListener('click', () =>
-  run(gifBtn, async (p) => download(await toGif(poster, p), filename('gif'))),
-);
-mp4Btn.addEventListener('click', () =>
-  run(mp4Btn, async (p) => {
+/* The jobs are named so more than one button can start them. The phone's
+   collapsed dock has its own save button, and progress has to appear on
+   whichever button was actually pressed — the one in the sheet is off-screen. */
+const jobs = {
+  png: async () => download(await toPng(poster), filename('png')),
+  gif: async (p) => download(await toGif(poster, p), filename('gif')),
+  mp4: async (p) => {
     if (hasMp4()) return download(await toMp4(poster, p), filename('mp4'));
     setStatus('This browser has no MP4 encoder — exporting WebM instead.');
     download(await toWebm(poster, p), filename('webm'));
-  }),
-);
+  },
+};
+
+pngBtn.addEventListener('click', () => run(pngBtn, jobs.png));
+gifBtn.addEventListener('click', () => run(gifBtn, jobs.gif));
+mp4Btn.addEventListener('click', () => run(mp4Btn, jobs.mp4));
+
+{
+  const save = $('dockSave');
+  const primary = () => (currentMode() === 'video' ? 'mp4' : 'png');
+  const syncDock = () => { save.textContent = `Download ${primary().toUpperCase()}`; };
+  save.addEventListener('click', () => run(save, jobs[primary()]));
+  for (const i of modeInputs) i.addEventListener('change', syncDock);
+  syncDock();
+}
