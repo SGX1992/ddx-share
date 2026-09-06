@@ -197,5 +197,8 @@ export function combo({ select, items, labelledBy }) {
   }
 
   paint();
-  return { refresh: paint, drop };
+  /* Whether this control is the one asking to be used next. main.js owns that
+     decision — the combobox has no idea what else is on the page. */
+  const attention = (on) => button.classList.toggle('attention', !!on);
+  return { refresh: paint, drop, attention };
 }

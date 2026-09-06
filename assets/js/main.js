@@ -226,6 +226,13 @@ async function rebuild() {
   const edition = byId(editionInput.value);
   /* One class drives the whole locked state; the fields carry .needs-edition. */
   document.body.classList.toggle('needs-edition', !edition);
+  /* Hand the running highlight along: the picker until an event is chosen,
+     then the upload button until a photo is. `photo` is not the test — it
+     holds the blurred stand-in from the first render — so the class setPhoto
+     adds is what says a real one has arrived. */
+  editionCombo.attention(!edition);
+  uploadBtn.classList.toggle(
+    'attention', !!edition && !uploadBtn.classList.contains('has-photo'));
   if (edition) editionCombo.drop(NO_EDITION);
   for (const g of actionGroups) g.hidden = g.dataset.for !== mode;
   bgFieldLabel.textContent = mode === 'video' ? 'Clip' : 'Background';

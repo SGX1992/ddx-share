@@ -16,6 +16,12 @@
   --accent:#FFF204;
   --text:#ffffff;
   --text-dim:#9A9A9A;
+  /* The accent, broken out so the stylesheet carries no literal brand colour.
+     --accent-rgb feeds rgba() tints, --accent-dim is the trough of the running
+     highlight, --accent-edge the border a control takes on hover. */
+  --accent-rgb:255,242,4;
+  --accent-dim:#5A5600;
+  --accent-edge:#4A4632;
   --font:"Helvetica Neue",Inter,Helvetica,Arial,sans-serif;
 }
 
@@ -94,11 +100,11 @@ img,canvas,svg{max-width:100%}
 }
 .combo__btn::after{
   content:"";position:absolute;inset:0;pointer-events:none;
-  background:linear-gradient(105deg,transparent 35%,rgba(255,242,4,.10) 50%,transparent 65%);
+  background:linear-gradient(105deg,transparent 35%,rgba(var(--accent-rgb),.10) 50%,transparent 65%);
   transform:translateX(-120%);
 }
-.combo__btn:hover{border-color:#4A4632;background:#101010}
-.combo__btn:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(255,242,4,.12)}
+.combo__btn:hover{border-color:var(--accent-edge);background:#101010}
+.combo__btn:focus-visible{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12)}
 .combo.is-open .combo__btn{border-color:var(--accent)}
 
 /* One line: the city carries the weight, the date trails it in a lighter tone. */
@@ -146,7 +152,7 @@ body:not(.needs-edition) .edition-hint{display:none}
   border:1px solid var(--input-border);background:var(--input-bg);
   color:var(--text-dim);font-size:12px;font-weight:500;white-space:nowrap;
 }
-.chip input:checked+span{border-color:var(--accent);color:var(--accent);background:rgba(255,242,4,.07)}
+.chip input:checked+span{border-color:var(--accent);color:var(--accent);background:rgba(var(--accent-rgb),.07)}
 /* The hide option is an icon, so it takes only the room it needs and gives the
    three worded options the rest. */
 .chip--icon{flex:0 0 auto}
@@ -231,19 +237,32 @@ body:not(.needs-edition) .edition-hint{display:none}
 }
 .photo-btn:hover{background:var(--surface-hi);color:#fff}
 
-/* The upload button is the one action that unlocks a good badge, so it gets a
-   running highlight until a photo is actually chosen. */
-.photo-btn.attention{
+/* The running highlight that says "do this next", and it moves as the poster
+   gets made: the event picker wears it on load, because nothing downstream can
+   be chosen until an event is, and it hands over to the upload button the
+   moment one is picked. Only ever on one control at a time — two things
+   demanding attention is the same as none. */
+.attention{
   position:relative;overflow:hidden;color:#fff;border:2px solid transparent;
   background:linear-gradient(var(--surface),var(--surface)) padding-box,
-             linear-gradient(110deg,#FFF204,#5A5600,#FFF204,#5A5600,#FFF204) border-box;
+             linear-gradient(110deg,var(--accent),var(--accent-dim),var(--accent),var(--accent-dim),var(--accent)) border-box;
   background-size:100% 100%,300% 100%;
   animation:shine-border 2.6s linear infinite;
 }
-.photo-btn.attention::after{
+.attention::after{
   content:"";position:absolute;inset:0;transform:translateX(-150%) skew(-20deg);
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.14),transparent);
   animation:shine-sweep 2.6s ease-in-out infinite;pointer-events:none;
+}
+/* The picker fills from --input-bg, not --surface, and its resting border is
+   1px — so the padding shrinks by the 1px the highlight's border adds, and the
+   control keeps its height instead of jumping when the glow arrives. */
+.combo__btn.attention{
+  background:linear-gradient(var(--input-bg),var(--input-bg)) padding-box,
+             linear-gradient(110deg,var(--accent),var(--accent-dim),var(--accent),
+                             var(--accent-dim),var(--accent)) border-box;
+  background-size:100% 100%,300% 100%;
+  padding:12px 13px;
 }
 @keyframes shine-border{to{background-position:0 0,300% 0}}
 @keyframes shine-sweep{55%,to{transform:translateX(150%) skew(-20deg)}}
@@ -275,7 +294,7 @@ body:not(.needs-edition) .edition-hint{display:none}
 .cta--ghost:hover{background:transparent;border-color:var(--accent);color:var(--accent)}
 .status{color:var(--text-dim);font-size:14px;line-height:1.4}
 .ticket-line{color:var(--text-dim);font-size:14px;margin-top:2px}
-.ticket-line a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(255,242,4,.35)}
+.ticket-line a{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(var(--accent-rgb),.35)}
 .ticket-line a:hover{border-bottom-color:var(--accent)}
 
 /* ---------- webcam ---------- */
@@ -396,7 +415,7 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
     font-family:var(--font);font-size:14px;font-weight:600;white-space:nowrap;
   }
   .dock button svg{width:17px;height:17px;flex:0 0 auto}
-  .dock__edit{background:var(--accent);color:#0B0B0B;box-shadow:0 10px 30px rgba(255,242,4,.26)}
+  .dock__edit{background:var(--accent);color:#0B0B0B;box-shadow:0 10px 30px rgba(var(--accent-rgb),.26)}
   .dock__save{
     background:rgba(18,18,18,.92);color:#fff;border:1px solid var(--input-border);
     backdrop-filter:blur(8px);box-shadow:0 10px 30px rgba(0,0,0,.5);
@@ -408,7 +427,7 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
 }
 
 @media (prefers-reduced-motion:reduce){
-  .photo-btn.attention,.photo-btn.attention::after{animation:none}
+  .attention,.attention::after{animation:none}
 }
 
 /* ============================================================
@@ -456,7 +475,7 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
 
   /* ---------- hover / press ---------- */
   .cta{transition:background .18s,color .18s,transform .18s cubic-bezier(.22,.8,.25,1),box-shadow .22s}
-  .cta:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(255,242,4,.22)}
+  .cta:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(var(--accent-rgb),.22)}
   .cta--ghost:hover{box-shadow:0 8px 22px rgba(0,0,0,.4)}
   .cta:active{transform:translateY(0) scale(.985)}
   /* The glyph is a download arrow, so let it dip toward the baseline. */
@@ -486,7 +505,7 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
   .thumb[aria-checked="true"] img{filter:saturate(1.06)}
 
   .field input[type=text]{transition:border-color .18s,box-shadow .18s}
-  .field input[type=text]:focus{box-shadow:0 0 0 3px rgba(255,242,4,.12)}
+  .field input[type=text]:focus{box-shadow:0 0 0 3px rgba(var(--accent-rgb),.12)}
 
   .ticket-line a{background-image:linear-gradient(var(--accent),var(--accent));
     background-size:0 1px;background-repeat:no-repeat;background-position:0 100%;
