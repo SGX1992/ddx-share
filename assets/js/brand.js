@@ -75,21 +75,27 @@ export function mixHex(a, b, t) {
 /* Same tracked line, revealed one character at a time. Each glyph gets its own
    slice of `progress`, overlapping enough that the line reads as one gesture
    rather than a row of separate fades. */
-export function drawTrackedReveal(ctx, text, x, y, size, weight, em, align, progress) {
+export function drawTrackedReveal(ctx, text, x, y, size, weight, em, align, progress, from = 0) {
   ctx.font = `${weight} ${size}px ${FONT}`;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   const total = trackedWidth(ctx, text, size, weight, em);
   let cx = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
   const extra = size * em;
-  const n = [...text].length;
+  const chars = [...text];
+  /* Only the tail from `from` animates — everything before it is already on the
+     poster and must not flicker just because a later letter changed. */
+  const moving = Math.max(1, chars.length - from);
   const span = 0.55;                       // how much of the window one glyph takes
-  const step = n > 1 ? (1 - span) / (n - 1) : 0;
+  const step = moving > 1 ? (1 - span) / (moving - 1) : 0;
   const base = ctx.globalAlpha;
 
-  [...text].forEach((ch, i) => {
-    const p = Math.max(0, Math.min(1, (progress - i * step) / span));
-    const eased = 1 - Math.pow(1 - p, 3);
+  chars.forEach((ch, i) => {
+    let eased = 1;
+    if (i >= from) {
+      const p = Math.max(0, Math.min(1, (progress - (i - from) * step) / span));
+      eased = 1 - Math.pow(1 - p, 3);
+    }
     if (eased > 0) {
       ctx.globalAlpha = base * eased;
       ctx.fillText(ch, cx, y + (1 - eased) * size * 0.22);

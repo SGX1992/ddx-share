@@ -23,6 +23,29 @@
 <body>
 <main class="layout">
 
+  <section class="preview">
+    <p class="preview-label">Preview</p>
+    <div class="badge-card">
+      <canvas id="previewCanvas" width="1080" height="1350"></canvas>
+      <div class="card-overlay" id="cardOverlay" aria-hidden="true">
+        <button type="button" class="card-cta" data-act="upload" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M4 20h16"/></svg>
+          Upload Photo
+        </button>
+        <button type="button" class="card-cta" data-act="camera" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+          Use Camera
+        </button>
+        <p class="card-hint">or just drop one here :)</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="sheet" id="sheet">
+    <button class="sheet__grab" id="sheetGrab" type="button" aria-expanded="true" aria-controls="sheet">
+      <i></i><span id="sheetGrabLabel">Hide options</span>
+    </button>
+
   <section class="panel">
     <header class="brand">
       <img src="assets/img/ddx-wordmark.png" alt="DDX" class="brand-mark">
@@ -55,6 +78,16 @@
       <select id="editionInput" autocomplete="off"></select>
     </div>
 
+    <div class="field">
+      <span>Headline</span>
+      <div class="chips" role="radiogroup" aria-label="Headline">
+        <label class="chip"><input type="radio" name="headline" value="I AM GOING" checked><span>I am going</span></label>
+        <label class="chip"><input type="radio" name="headline" value="SEE YOU AT"><span>See you at</span></label>
+        <label class="chip"><input type="radio" name="headline" value="MEET ME AT"><span>Meet me at</span></label>
+        <label class="chip chip--icon" title="No headline"><input type="radio" name="headline" value="" aria-label="No headline"><span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 10 8 10 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><path d="M6.61 6.61A18.4 18.4 0 0 0 2 12s3 8 10 8a9.7 9.7 0 0 0 5.39-1.61"/><path d="m2 2 20 20"/></svg></span></label>
+      </div>
+    </div>
+
     <div class="field" id="bgField" hidden>
       <span>Background</span>
       <div class="thumbs" id="bgThumbs" role="radiogroup" aria-label="Background image"></div>
@@ -76,6 +109,11 @@
         <input id="fileInput" type="file" accept="image/*" hidden>
       </div>
 
+      <div class="upload-bar" id="uploadBar" hidden>
+        <div class="upload-bar__track"><i id="uploadBarFill"></i></div>
+        <span id="uploadBarLabel">Reading photo…</span>
+      </div>
+
       <div class="sliders">
         <label class="slider">
           <em>Zoom</em>
@@ -92,13 +130,6 @@
       <span>Name</span>
       <input id="nameInput" type="text" value="Anja Popvic" maxlength="40" autocomplete="off">
     </label>
-  </section>
-
-  <section class="preview">
-    <p class="preview-label">Preview</p>
-    <div class="badge-card">
-      <canvas id="previewCanvas" width="1080" height="1350"></canvas>
-    </div>
   </section>
 
   <section class="actions-area">
@@ -121,6 +152,7 @@
     <p id="exportStatus" class="status" hidden></p>
     <p class="ticket-line">Not registered yet? <a href="https://www.ddxconference.com" target="_blank" rel="noopener">Get your DDX ticket &rarr;</a></p>
   </section>
+  </div>
 
 </main>
 

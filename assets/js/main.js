@@ -1,7 +1,7 @@
 import { Poster } from './poster.js';
 import { EDITIONS, DEFAULT_EDITION, byId, prettyDate } from './editions.js';
 import { download, hasMp4, toGif, toMp4, toPng, toWebm } from './exporters.js';
-import { backgroundVideo } from './videobg.js';
+import { backgroundVideo, clips, posterUrl } from './videobg.js';
 import { variants, thumbUrl } from './backgrounds.js';
 import { combo } from './combo.js';
 
@@ -18,8 +18,10 @@ const photoThumb = $('photoThumb');
 const previewCanvas = $('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const modeInputs = [...document.querySelectorAll('input[name="mode"]')];
+const headlineInputs = [...document.querySelectorAll('input[name="headline"]')];
 const bgField = $('bgField');
 const bgThumbs = $('bgThumbs');
+const bgFieldLabel = bgField.querySelector('span');
 const actionGroups = [...document.querySelectorAll('.actions[data-for]')];
 const statusEl = $('exportStatus');
 const mp4Btn = $('mp4Btn');
@@ -102,14 +104,19 @@ function drawnPlaceholder() {
 
 const currentMode = () => modeInputs.find((i) => i.checked)?.value || 'image';
 
+/* One index per format: the two pickers are different lists, and carrying a
+   position from a seven-shot city into a two-clip list would land nowhere. */
 let bgIndex = 0;
+let videoIndex = 0;
 
 function readForm() {
   return {
     name: nameInput.value.trim(),
     edition: byId(editionInput.value),
     mode: currentMode(),
+    headline: headlineInputs.find((i) => i.checked)?.value,
     bgIndex,
+    videoIndex,
     photo,
     photoZoom: parseFloat(zoomInput.value) || 1,
   };
@@ -126,17 +133,15 @@ function readForm() {
 let thumbsToken = 0;
 let thumbsKey = null;
 
+const currentIndex = () => (currentMode() === 'video' ? videoIndex : bgIndex);
+
 function markChecked() {
-  [...bgThumbs.children].forEach((t, i) => t.setAttribute('aria-checked', String(i === bgIndex)));
+  const active = currentIndex();
+  [...bgThumbs.children].forEach((t, i) => t.setAttribute('aria-checked', String(i === active)));
 }
 
 async function renderThumbs(edition, mode) {
-  if (mode !== 'image') {
-    bgField.hidden = true;
-    thumbsKey = null;
-    return;
-  }
-  const key = `${edition.id}|${mode}`;
+  const key = `${mode}|${edition.id}`;
   if (key === thumbsKey) {
     markChecked();
     return;
@@ -144,29 +149,36 @@ async function renderThumbs(edition, mode) {
   thumbsKey = key;
 
   const token = ++thumbsToken;
-  const list = await variants(edition);
+  const list =
+    mode === 'video'
+      ? (await clips(edition)).map((c) => ({ label: c.label, thumb: posterUrl(c) }))
+      : (await variants(edition)).map((v) => ({ label: v.label, thumb: thumbUrl(v.file) }));
   if (token !== thumbsToken) return;
 
   bgField.hidden = list.length < 2;
   bgThumbs.replaceChildren();
   if (list.length < 2) return;
 
-  list.forEach((v, i) => {
+  list.forEach((item, i) => {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'thumb';
     b.role = 'radio';
-    b.title = v.label;
-    const img = document.createElement('img');
-    img.src = thumbUrl(v.file);
-    img.alt = v.label;
-    img.loading = 'lazy';
+    b.title = item.label;
+    if (item.thumb) {
+      const img = document.createElement('img');
+      img.src = item.thumb;
+      img.alt = item.label;
+      img.loading = 'lazy';
+      b.append(img);
+    }
     const cap = document.createElement('span');
-    cap.textContent = v.label;
-    b.append(img, cap);
+    cap.textContent = item.label;
+    b.append(cap);
     b.addEventListener('click', () => {
-      if (bgIndex === i) return;
-      bgIndex = i;
+      if (currentIndex() === i) return;
+      if (currentMode() === 'video') videoIndex = i;
+      else bgIndex = i;
       markChecked();
       rebuild();
     });
@@ -180,6 +192,7 @@ async function rebuild() {
   const token = ++pending;
   const mode = currentMode();
   for (const g of actionGroups) g.hidden = g.dataset.for !== mode;
+  bgFieldLabel.textContent = mode === 'video' ? 'Clip' : 'Background';
   renderThumbs(byId(editionInput.value), mode);
   await poster.setData(readForm());
   if (token !== pending) return; // a newer edition or format won the race
@@ -222,24 +235,23 @@ const syncSegment = () => segmented?.setAttribute('data-mode', currentMode());
    for the first render so it never competes with the initial paint, and the
    result is cached — setData just picks it up. */
 function warmVideo() {
-  const go = () => backgroundVideo().catch(() => {});
+  const go = () => backgroundVideo(byId(editionInput.value), videoIndex).catch(() => {});
   if ('requestIdleCallback' in window) requestIdleCallback(go, { timeout: 3000 });
   else setTimeout(go, 1200);
 }
 
-let nameSettle = 0;
-nameInput.addEventListener('input', () => {
-  rebuild();
-  /* Wait for the typing to stop, then let the name write itself in. */
-  clearTimeout(nameSettle);
-  nameSettle = setTimeout(() => poster.pulseName(), 380);
-});
+/* No debounce any more: the poster works out which characters actually changed
+   and animates only those, so firing on every keystroke is what makes it feel
+   like the letters are being typed onto the badge. */
+nameInput.addEventListener('input', rebuild);
 editionInput.addEventListener('change', async () => {
-  bgIndex = 0; // each city's shots are its own; don't carry an index across
+  bgIndex = 0; // each city's shots and clips are its own; don't carry an index across
+  videoIndex = 0;
   await rebuild();
   poster.beginIntro({ keepBackground: true }); // the poster rebuilds for the new city
 });
 for (const i of modeInputs) i.addEventListener('change', () => { syncSegment(); rebuild(); });
+for (const i of headlineInputs) i.addEventListener('change', rebuild);
 syncSegment();
 zoomInput.addEventListener('input', rebuild);
 panInput.addEventListener('input', () => poster.setFraming(parseFloat(panInput.value)));
@@ -263,16 +275,66 @@ function setPhoto(source) {
   rebuild();
 }
 
-uploadBtn.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', () => {
-  const file = fileInput.files?.[0];
+const uploadBar = $('uploadBar');
+const uploadBarFill = $('uploadBarFill');
+const uploadBarLabel = $('uploadBarLabel');
+
+function showUpload(p, label) {
+  uploadBar.hidden = false;
+  uploadBarFill.style.width = `${Math.round(p * 100)}%`;
+  uploadBarLabel.textContent = label;
+}
+const hideUpload = () => {
+  uploadBar.hidden = true;
+  uploadBarFill.style.width = '0%';
+};
+
+/* FileReader rather than an object URL, purely so there is a real number to
+   report — a phone photo is easily 10 MB and the wait is long enough to need
+   explaining. Decoding afterwards has no progress to give, hence the second
+   label rather than a bar that pretends. */
+function readImage(file, onProgress) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) return reject(new Error('That file is not an image.'));
+    const fr = new FileReader();
+    fr.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+    fr.onerror = () => reject(new Error('Could not read that file.'));
+    fr.onload = () => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error("The browser couldn't open that image."));
+      img.src = fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+async function acceptFile(file) {
   if (!file) return;
-  const img = new Image();
-  img.onload = () => {
-    URL.revokeObjectURL(img.src);
+  try {
+    showUpload(0, 'Reading photo…');
+    const img = await readImage(file, (p) => showUpload(p * 0.9, 'Reading photo…'));
+    showUpload(1, 'Ready');
     setPhoto(img);
-  };
-  img.src = URL.createObjectURL(file);
+    setTimeout(hideUpload, 700);
+  } catch (err) {
+    hideUpload();
+    setStatus(err.message);
+  }
+}
+
+uploadBtn.addEventListener('click', () => fileInput.click());
+
+/* The pair floating over the portrait card are a second door to the same two
+   actions, so they delegate rather than duplicating any logic. */
+$('cardOverlay').addEventListener('click', (e) => {
+  const act = e.target.closest('.card-cta')?.dataset.act;
+  if (act === 'upload') uploadBtn.click();
+  else if (act === 'camera') webcamBtn.click();
+});
+fileInput.addEventListener('change', () => {
+  acceptFile(fileInput.files?.[0]);
+  fileInput.value = ''; // so picking the same file twice still fires
 });
 
 /* ---------- webcam ---------- */
@@ -341,6 +403,12 @@ fileInput.addEventListener('change', () => {
     return p.x >= c.x && p.x <= c.x + c.w && p.y >= c.y && p.y <= c.y + c.h;
   };
 
+  const overlay = $('cardOverlay');
+  const showOverlay = (on) => overlay.classList.toggle('is-on', on);
+  /* The buttons themselves accept the pointer, so once you reach one the canvas
+     stops reporting — this keeps the overlay up while you're on it. */
+  overlay.addEventListener('pointerover', () => showOverlay(true));
+
   let drag = null;
   previewCanvas.addEventListener('pointerdown', (e) => {
     const p = at(e);
@@ -357,17 +425,92 @@ fileInput.addEventListener('change', () => {
       drag = { x: p.x, y: p.y };
       panInput.value = poster.pan.y; // keep the slider honest after a drag
     } else {
-      previewCanvas.style.cursor = overCard(p) && poster.photoRect() ? 'grab' : 'default';
+      const on = overCard(p) && Boolean(poster.photoRect());
+      previewCanvas.style.cursor = on ? 'grab' : 'default';
+      showOverlay(on);
     }
   });
   const release = () => {
     drag = null;
     previewCanvas.style.cursor = 'default';
   };
-  previewCanvas.addEventListener('pointerup', release);
-  previewCanvas.addEventListener('pointercancel', release);
-  previewCanvas.addEventListener('pointerleave', () => {
-    if (!drag) release();
+  previewCanvas.parentElement.addEventListener('pointerleave', () => showOverlay(false));
+
+  /* ---------- drop a photo onto the poster ---------- */
+  const card = previewCanvas.parentElement;
+  const hasFile = (e) => [...(e.dataTransfer?.types || [])].includes('Files');
+  const setDrop = (on) => {
+    overlay.classList.toggle('is-drop', on);
+    poster.dropActive = on; // the ring is part of the render, not an overlay
+    if (on) showOverlay(true);
+  };
+
+  for (const ev of ['dragenter', 'dragover']) {
+    card.addEventListener(ev, (e) => {
+      if (!hasFile(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      setDrop(true);
+    });
+  }
+  card.addEventListener('dragleave', (e) => {
+    if (!card.contains(e.relatedTarget)) {
+      setDrop(false);
+      showOverlay(false);
+    }
+  });
+  card.addEventListener('drop', (e) => {
+    if (!hasFile(e)) return;
+    e.preventDefault();
+    setDrop(false);
+    acceptFile(e.dataTransfer.files?.[0]);
+  });
+
+  /* A drag can end without the card ever seeing a dragleave — dropped somewhere
+     else, cancelled with Escape, or dragged back out to the desktop. Any of
+     those used to strand the ring on, and once stranded it looked like a plain
+     hover state. These are the ways out. */
+  for (const ev of ['dragend', 'drop', 'dragexit']) {
+    document.addEventListener(ev, () => {
+      setDrop(false);
+      showOverlay(false);
+    });
+  }
+  window.addEventListener('blur', () => setDrop(false));
+
+  /* Without this the browser navigates away to the image when a drop misses the
+     card — which loses whatever the person had already set up. */
+  for (const ev of ['dragover', 'drop']) {
+    document.addEventListener(ev, (e) => {
+      if (!card.contains(e.target)) e.preventDefault();
+    });
+  }
+}
+
+/* ---------- the sheet, on phones ---------- */
+{
+  const sheet = $('sheet');
+  const grab = $('sheetGrab');
+  const label = $('sheetGrabLabel');
+  const setSheet = (open) => {
+    document.body.classList.toggle('sheet-open', open);
+    grab.setAttribute('aria-expanded', String(open));
+    label.textContent = open ? 'Hide options' : 'Edit your poster';
+    if (open) sheet.scrollTop = 0;
+  };
+  setSheet(true);
+  grab.addEventListener('click', () => setSheet(!document.body.classList.contains('sheet-open')));
+
+  /* A flick on the handle does what a flick should, without dragging the sheet
+     under the finger — the sheet scrolls its own content, and tracking both
+     would fight. */
+  let startY = null;
+  grab.addEventListener('pointerdown', (e) => { startY = e.clientY; });
+  grab.addEventListener('pointerup', (e) => {
+    if (startY === null) return;
+    const dy = e.clientY - startY;
+    startY = null;
+    if (Math.abs(dy) > 24) setSheet(dy < 0);
   });
 }
 

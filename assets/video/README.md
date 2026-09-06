@@ -1,15 +1,30 @@
 # Motion background
 
-One file, shared by every edition:
+`manifest.json` lists the clips, shared by every edition. First entry is the
+default; two or more and a picker appears where the background thumbnails sit.
 
-```
-ddx-background.mp4
+```json
+{ "file": "ddx-background.mp4", "label": "Flow", "poster": "poster-1.jpg" }
 ```
 
-Used when someone picks **Video** — it becomes the background, and the download
-options become MP4 and GIF. Nothing else reads it, so replacing this one file
-changes every edition's video at once. If it is missing, Video mode quietly falls
-back to the edition's still image and logs a warning.
+`poster` is a still used for the picker thumbnail, so choosing between clips
+doesn't mean downloading all of them — only the selected one is ever fetched.
+Grab a frame a fifth of the way in, crop it 4:5, and save it here.
+
+If a clip is missing, Video mode quietly falls back to the edition's still image
+and logs a warning.
+
+**What's here now**
+
+| File | Offered to | Size | Length | Notes |
+| --- | --- | --- | --- | --- |
+| `ddx-background.mp4` | everyone | 4.1 MB | 24.0 s | 1280×720 landscape |
+| `ddx-background-2.mp4` | everyone | 18.4 MB | 26.3 s | 720×720 — heavy |
+| `miami-1.mp4` | Miami | 1.1 MB | 6.5 s | 720×720 — **this is the profile to copy** |
+| `san-diego-1.mp4` | San Diego | 19.8 MB | 26.3 s | 720×720 — heavy |
+
+`miami-1.mp4` and `san-diego-1.mp4` are the same resolution, and one is eighteen
+times the size of the other. Short and well encoded is the whole difference.
 
 **Make it 1080×1350 (4:5) or taller, H.264.** Drawn cover-fit, same as the stills. The
 current file is 1280×720, which is landscape and short: it gets scaled 1.875× to fill

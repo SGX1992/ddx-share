@@ -202,6 +202,23 @@ Before it goes in front of attendees, make sure every edition in the picker has 
 background in `assets/img/bg/` — a missing one falls back to a drawn gradient, which
 is fine for a work-in-progress but not for a public link.
 
+## Partner logos
+
+An edition can carry a strip of partner marks printed under the name — see
+`partners` in `editions.js`. Only San Diego has one.
+
+**White marks on transparent, wide and short.** The file is scaled to a fixed
+width (`partnersMaxW`), so the aspect ratio decides the height.
+
+If what you have is white logos on a dark background, the alpha can be lifted
+straight out of the luminance: set every pixel to white and use its brightness as
+the alpha. The catch is that a strip like this is rarely uniformly black — the
+first pass here left a faint panel behind several marks, visible only once the
+strip sat on a photo. The fix is a floor: crush everything below ~62 luminance to
+fully transparent and smoothstep the ramp above it, which kills the panels while
+keeping the antialiasing. Check the result on mid-grey, not on black, or you will
+not see what you left behind.
+
 ## Assets
 
 - `assets/img/ddx-wordmark.png` — the official DDX wordmark, white on transparent.

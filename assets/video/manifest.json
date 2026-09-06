@@ -1,0 +1,9 @@
+{
+  "_comment": "Motion backgrounds. Same shape as the image manifest: an edition's own clips come first, then everything in _shared, which every edition offers. `poster` is a still used for the picker thumbnail so the clips themselves are only fetched when chosen — they are megabytes each.",
+  "_shared": [
+    { "file": "ddx-background.mp4",   "label": "Flow",  "poster": "poster-1.jpg" },
+    { "file": "ddx-background-2.mp4", "label": "Prism", "poster": "poster-2.jpg" }
+  ],
+  "miami":     [{ "file": "miami-1.mp4",     "label": "Miami",     "poster": "poster-miami-1.jpg" }],
+  "san-diego": [{ "file": "san-diego-1.mp4", "label": "San Diego", "poster": "poster-san-diego-1.jpg" }]
+}

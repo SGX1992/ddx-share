@@ -17,7 +17,7 @@ export const STILL_LOOP = 8; // only used if a video export ever runs in image m
 
    Exports never see this: main.js calls skipIntro() before rendering. */
 const INTRO_MS = 5000;
-const NAME_REVEAL_MS = 620; // the name re-writes itself when it settles
+const NAME_REVEAL_MS = 420; // only the changed tail of the name animates
 const BG_FADE_MS = 750; // cross-fade when the edition or the chosen shot changes
 const CUE = {
   background: [0.00, 0.34],
@@ -26,7 +26,8 @@ const CUE = {
   date:       [0.56, 0.72],
   city:       [0.64, 0.84],
   name:       [0.74, 0.92],
-  footer:     [0.82, 0.98],
+  partners:   [0.80, 0.94],
+  footer:     [0.86, 1.00],
   tint:       [0.40, 1.00],
 };
 
@@ -74,10 +75,15 @@ const NEUTRAL = {
   'soft-light': '#808080',
 };
 
+/* The opening line. All three are ten characters, so the fitted size barely
+   moves between them and the poster keeps its rhythm whichever you pick. */
+export const HEADLINES = ['I AM GOING', 'SEE YOU AT', 'MEET ME AT'];
+
 export const L = {
   side: 76,
-  headline: 'I AM GOING',
-  headMaxW: 840,
+  headline: HEADLINES[0],
+  headMaxW: 936,
+  headTrack: -0.038,
   headOverlap: 0.2,   // how far the card crops into the headline, in cap heights
   card: { w: 548, h: 616, r: 28, y: 272 },
   dateGap: 62,        // date baseline above the card's bottom edge
@@ -112,6 +118,8 @@ export const L = {
   tintStrength: 0.30,
   tintScope: 'all',
 
+  partnersMaxW: 790,
+  partnersTop: 1142,
   footBase: 1274,
   footSize: 22,
   footWeight: 400,
@@ -135,6 +143,9 @@ export class Poster {
     this.bgPrev = null; // held only while a cross-fade is running
     this.bgFade = 0;
     this.video = null;
+    this.videoKey = '';
+    this.dropActive = false; // a file is hovering over the portrait card
+    this.partners = new Map(); // edition id -> logo strip Image, or null
     /* Framing is kept as a ratio of the available slack, not pixels, so zooming
        doesn't throw the crop away and one number drives both the drag and the
        slider. -0.25 starts a touch high: on a portrait the face is above centre. */
@@ -143,6 +154,7 @@ export class Poster {
     this.introStart = 0; // 0 = no intro running, render the finished poster
     this.introKeepsBackground = false;
     this.nameAt = 0;
+    this.nameFrom = 0;
     this.wordmark = new Image();
     this.wordmark.src = 'assets/img/ddx-wordmark.png';
     this.wordmarkReady = new Promise((r) => {
@@ -168,12 +180,17 @@ export class Poster {
   skipIntro() {
     this.introStart = 0;
     this.nameAt = 0;
+    this.nameFrom = 0;
   }
 
-  /* Called once typing settles, not on every keystroke — restarting the reveal
-     per character would just make the line strobe. */
-  pulseName() {
-    this.nameAt = performance.now();
+  /* How much of two strings is identical from the left. Typing a letter moves
+     this by one, so only that letter animates; editing in the middle replays
+     from the edit onward, which is what it looks like it should do. */
+  static sharedPrefix(a = '', b = '') {
+    const n = Math.min(a.length, b.length);
+    let i = 0;
+    while (i < n && a[i] === b[i]) i++;
+    return i;
   }
 
   get introT() {
@@ -199,8 +216,16 @@ export class Poster {
     const bgChanged =
       this.data?.edition?.id !== data.edition.id || this.data?.bgIndex !== data.bgIndex;
     if (this.data && this.data.photo !== data.photo) this.pan = { x: 0, y: -0.25 };
+    if (this.data && this.data.name !== data.name) {
+      this.nameFrom = Poster.sharedPrefix(
+        (this.data.name || '').toUpperCase(),
+        (data.name || '').toUpperCase(),
+      );
+      this.nameAt = performance.now();
+    }
     this.data = data;
     this.mode = data.mode === 'video' ? 'video' : 'image';
+    this.loadPartners(data.edition);
 
     if (bgChanged || !this.bg) {
       const next = await background(data.edition, data.bgIndex || 0);
@@ -212,7 +237,13 @@ export class Poster {
       }
       this.bg = next;
     }
-    if (this.mode === 'video' && !this.video) this.video = await backgroundVideo();
+    if (this.mode === 'video') {
+      const want = `${data.edition.id}|${data.videoIndex || 0}`;
+      if (!this.video || this.videoKey !== want) {
+        this.video = await backgroundVideo(data.edition, data.videoIndex || 0);
+        this.videoKey = want;
+      }
+    }
 
     /* The clip only runs while it is on screen. Exports pause it and seek. */
     if (this.video) {
@@ -285,6 +316,7 @@ export class Poster {
     layer(c, cue('headline', t), 20, () => this.drawHeadline(c));
     this.drawCard(c, cue('card', t));
     this.drawCopy(c, t);
+    layer(c, cue('partners', t), 12, () => this.drawPartners(c));
     layer(c, cue('footer', t), 14, () => this.drawFooter(c));
     if (L.tintScope === 'all') this.drawTint(c, cue('tint', t));
     return this.canvas;
@@ -347,10 +379,14 @@ export class Poster {
   /* Sits *behind* the card — the card crops its lower edge, which is what gives
      the layout its depth. Drawn before the card for exactly that reason. */
   drawHeadline(c) {
-    const size = fitSize(c, L.headline, L.headMaxW, DISPLAY_WEIGHT, -0.015);
+    /* `??` rather than `||`, because an empty string is a real choice here —
+       the "None" option — and must not fall through to the default. */
+    const text = this.data?.headline ?? L.headline;
+    if (!text) return;
+    const size = fitSize(c, text, L.headMaxW, DISPLAY_WEIGHT, L.headTrack);
     const base = L.card.y + capHeight(c, size, DISPLAY_WEIGHT) * L.headOverlap;
     c.fillStyle = WHITE;
-    drawTracked(c, L.headline, W / 2, base, size, DISPLAY_WEIGHT, -0.015, 'center');
+    drawTracked(c, text, W / 2, base, size, DISPLAY_WEIGHT, L.headTrack, 'center');
   }
 
   drawCard(c, progress = 1) {
@@ -372,6 +408,17 @@ export class Poster {
 
     const p = this.photoRect();
     if (p) c.drawImage(this.data.photo, p.x, p.y, p.dw, p.dh);
+
+    /* The drop ring is painted here, inside the card's clip and *before* the
+       fade, so the gradient washes over its lower half and the date and city
+       print on top of it. Drawn as an HTML overlay it sat above the canvas and
+       cut a hard line straight through the type. */
+    if (this.dropActive) {
+      roundRect(c, x, y, w, h, r);
+      c.strokeStyle = ACCENT;
+      c.lineWidth = 8; // half is clipped away, so this reads as a 4px inset ring
+      c.stroke();
+    }
 
     /* The fade the copy sits on. Ends fully black so the card dissolves into the
        poster instead of stopping at a hard edge. */
@@ -410,13 +457,14 @@ export class Poster {
         reveal = (performance.now() - this.nameAt) / NAME_REVEAL_MS;
         if (reveal >= 1) {
           this.nameAt = 0;
+    this.nameFrom = 0;
           reveal = 1;
         }
       }
       layer(c, cue('name', t), 14, () => {
         c.fillStyle = WHITE;
         if (reveal < 1) {
-          drawTrackedReveal(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center', reveal);
+          drawTrackedReveal(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center', reveal, this.nameFrom);
         } else {
           drawTracked(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center');
         }
@@ -437,6 +485,25 @@ export class Poster {
     c.fillStyle = g;
     c.fillRect(0, 0, W, H);
     c.restore();
+  }
+
+  /* An edition can carry a partner strip; most don't. Loaded once per edition
+     and cached as null when absent, so a missing file is never re-requested. */
+  loadPartners(edition) {
+    if (!edition?.partners) return;
+    if (this.partners.has(edition.id)) return;
+    this.partners.set(edition.id, null);
+    const img = new Image();
+    img.onload = () => this.partners.set(edition.id, img);
+    img.src = `assets/img/${edition.partners}`;
+  }
+
+  drawPartners(c) {
+    const img = this.partners.get(this.data?.edition?.id);
+    if (!img) return;
+    const w = L.partnersMaxW;
+    const h = (w * img.naturalHeight) / img.naturalWidth;
+    c.drawImage(img, (W - w) / 2, L.partnersTop, w, h);
   }
 
   drawFooter(c) {

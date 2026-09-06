@@ -3,9 +3,13 @@
    from it. Add or re-date an edition here and nothing else needs touching.
 
    `bg` names a file in assets/img/bg/. Missing files fall back to default.jpg,
-   and if that's missing too the poster draws a tinted gradient using `tint`.  */
+   and if that's missing too the poster draws a tinted gradient using `tint`.
+
+   `partners` is an optional logo strip in assets/img/, printed under the name.
+   White marks on transparent, wide and short — it is scaled to a fixed width. */
 export const EDITIONS = [
-  { id: 'san-diego', city: 'San Diego', date: '17TH SEPTEMBER 2026', dated: true,  tint: '#1E4E6B' },
+  { id: 'san-diego', city: 'San Diego', date: '17TH SEPTEMBER 2026', dated: true,  tint: '#1E4E6B',
+    partners: 'partners-san-diego.png' },
   { id: 'miami',     city: 'Miami',     date: '25TH SEPTEMBER 2026', dated: true,  tint: '#1F5C63' },
   { id: 'london',    city: 'London',    date: '20TH NOVEMBER 2026',  dated: true,  tint: '#3A3F5C' },
   { id: 'dubai',     city: 'Dubai',     date: '27–28 JANUARY 2027',  dated: true,  tint: '#6B4A1E' },
