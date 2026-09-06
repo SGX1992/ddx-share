@@ -170,6 +170,23 @@ export function combo({ select, items, labelledBy }) {
     }
   });
 
+  /* Takes an entry out of the list permanently. The placeholder is the empty
+     state rather than a choice — once a real edition is picked there is nothing
+     to go back to, so it leaves instead of sitting there as a dead end. */
+  function drop(value_) {
+    const i = items.findIndex((it) => it.value === value_);
+    if (i < 0) return;
+    items.splice(i, 1);
+    options.splice(i, 1)[0].remove();
+    [...select.options].find((o) => o.value === value_)?.remove();
+    options.forEach((li, n) => {
+      li.id = `${select.id}-opt-${n}`;
+      li.style.setProperty('--i', n);
+    });
+    active = Math.max(0, items.findIndex((it) => it.value === select.value));
+    paint();
+  }
+
   paint();
-  return { refresh: paint };
+  return { refresh: paint, drop };
 }

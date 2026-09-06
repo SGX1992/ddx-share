@@ -68,7 +68,7 @@ editionInput.value = DEFAULT_EDITION;
 
 /* The select stays as the model; this draws the control over it. Everything
    below still reads editionInput.value and listens for its change event. */
-combo({
+const editionCombo = combo({
   select: editionInput,
   labelledBy: 'editionLabel',
   items: [
@@ -222,6 +222,7 @@ async function rebuild() {
   const edition = byId(editionInput.value);
   /* One class drives the whole locked state; the fields carry .needs-edition. */
   document.body.classList.toggle('needs-edition', !edition);
+  if (edition) editionCombo.drop(NO_EDITION);
   for (const g of actionGroups) g.hidden = g.dataset.for !== mode;
   bgFieldLabel.textContent = mode === 'video' ? 'Clip' : 'Background';
   renderThumbs(edition, mode);

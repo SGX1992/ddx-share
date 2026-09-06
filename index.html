@@ -68,6 +68,12 @@
     <h1 class="sr-only">Make your DDX &ldquo;I am going&rdquo; post</h1>
 
     <div class="field">
+      <span id="editionLabel">Edition</span>
+      <select id="editionInput" autocomplete="off"></select>
+      <p class="edition-hint">Pick your edition to start.</p>
+    </div>
+
+    <div class="field needs-edition">
       <span>Format</span>
       <div class="segmented" role="radiogroup" aria-label="Format">
         <label class="seg">
@@ -85,12 +91,6 @@
           </span>
         </label>
       </div>
-    </div>
-
-    <div class="field">
-      <span id="editionLabel">Edition</span>
-      <select id="editionInput" autocomplete="off"></select>
-      <p class="edition-hint">Pick your edition to start.</p>
     </div>
 
     <div class="field needs-edition" id="bgField" hidden>

@@ -448,14 +448,15 @@ export class Poster {
   drawCopy(c, t = 1) {
     const d = this.data;
 
-    /* No edition chosen yet: no date to print, and the mark stands alone. */
-    if (d.edition?.date) {
-      const dateSize = fitSize(c, d.edition.date, L.dateMaxW, 600, 0.24, L.dateCap);
-      layer(c, cue('date', t), 12, () => {
-        c.fillStyle = ACCENT;
-        drawTracked(c, d.edition.date, W / 2, L.card.bottom - L.dateGap, dateSize, 600, 0.24, 'center');
-      });
-    }
+    /* With no edition chosen the poster still has to read as a poster, so both
+       slots hold their shape: the date line announces the tour, and the name
+       line shows where a name will go. */
+    const date = d.edition?.date || 'COMING SOON';
+    const dateSize = fitSize(c, date, L.dateMaxW, 600, 0.24, L.dateCap);
+    layer(c, cue('date', t), 12, () => {
+      c.fillStyle = ACCENT;
+      drawTracked(c, date, W / 2, L.card.bottom - L.dateGap, dateSize, 600, 0.24, 'center');
+    });
 
     const city = (d.edition ? `DDX ${d.edition.city}` : 'DDX').toUpperCase();
     const citySize = fitSize(c, city, L.cityMaxW, DISPLAY_WEIGHT, L.cityTrack, L.cityCap);
@@ -465,7 +466,8 @@ export class Poster {
       drawTracked(c, city, W / 2, cityBase, citySize, DISPLAY_WEIGHT, L.cityTrack, 'center');
     });
 
-    const name = (d.name || '').toUpperCase();
+    const placeholder = !d.edition && !d.name;
+    const name = (d.name || (placeholder ? 'Your name' : '')).toUpperCase();
     if (name) {
       const nameSize = fitSize(c, name, L.nameMaxW, 700, L.nameTrack, L.nameCap);
       const y = cityBase + L.nameGap;
@@ -479,7 +481,9 @@ export class Poster {
         }
       }
       layer(c, cue('name', t), 14, () => {
-        c.fillStyle = WHITE;
+        /* Dimmed when it is standing in for a name, so it reads as an invitation
+           rather than as somebody called Your Name. */
+        c.fillStyle = placeholder ? mixHex(WHITE, '#000000', 0.52) : WHITE;
         if (reveal < 1) {
           drawTrackedReveal(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center', reveal, this.nameFrom);
         } else {
