@@ -9,6 +9,7 @@ import { variant } from './variant.js';
 const $ = (id) => document.getElementById(id);
 
 const nameInput = $('nameInput');
+const roleInput = $('roleInput');
 const editionInput = $('editionInput');
 const uploadBtn = $('uploadBtn');
 const webcamBtn = $('webcamBtn');
@@ -62,6 +63,8 @@ editionInput.value = DEFAULT_EDITION;
   const q = new URLSearchParams(location.search);
   const n = q.get('name');
   if (n !== null) nameInput.value = n.slice(0, 40);
+  const r = q.get('role');
+  if (r !== null) roleInput.value = r.slice(0, 60);
   const ed = (q.get('edition') || q.get('city') || '').toLowerCase().replace(/\s+/g, '-');
   if (EDITIONS.some((e) => e.id === ed)) editionInput.value = ed;
 }
@@ -135,6 +138,7 @@ let videoIndex = 0;
 function readForm() {
   return {
     name: nameInput.value.trim(),
+    role: roleInput.value.trim(),
     edition: byId(editionInput.value),
     mode: currentMode(),
     headline: headlineInputs.find((i) => i.checked)?.value,
@@ -276,6 +280,7 @@ function warmVideo() {
    and animates only those, so firing on every keystroke is what makes it feel
    like the letters are being typed onto the badge. */
 nameInput.addEventListener('input', rebuild);
+roleInput.addEventListener('input', rebuild);
 editionInput.addEventListener('change', async () => {
   bgIndex = 0; // each city's shots and clips are its own; don't carry an index across
   videoIndex = 0;

@@ -4,7 +4,7 @@
    answers Range requests with 206. Nothing here ships to production; the folder
    is plain static hosting, and any real host does both of these already. */
 import { createServer } from 'node:http';
-import { stat } from 'node:fs/promises';
+import { stat, writeFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,6 +31,19 @@ const send = (res, stream) => {
 
 createServer(async (req, res) => {
   const path = decodeURIComponent(req.url.split('?')[0]);
+
+  /* Dev-only: the page posts its own rendered poster back so the social preview
+     image is the real empty state rather than a mock-up that drifts from it.
+     One fixed destination, no path from the request, and the server is bound to
+     the loopback interface — this writes nothing else, from nowhere else. */
+  if (req.method === 'POST' && path === '/__og') {
+    const chunks = [];
+    for await (const c of req) chunks.push(c);
+    const url = Buffer.concat(chunks).toString();
+    const b64 = url.slice(url.indexOf(',') + 1);
+    await writeFile(join(ROOT, 'assets/img/og-image.png'), Buffer.from(b64, 'base64'));
+    return res.writeHead(200).end('saved');
+  }
   const file = join(ROOT, normalize(path === '/' ? '/index.html' : path));
   if (!file.startsWith(ROOT)) return res.writeHead(403).end('forbidden');
 
@@ -63,4 +76,4 @@ createServer(async (req, res) => {
   } catch {
     res.writeHead(404).end('not found');
   }
-}).listen(8791, () => console.log('ddx-badge on http://localhost:8791'));
+}).listen(8791, '127.0.0.1', () => console.log('ddx-badge on http://localhost:8791'));

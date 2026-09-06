@@ -27,6 +27,7 @@ const CUE = {
   date:       [0.56, 0.72],
   city:       [0.64, 0.84],
   name:       [0.74, 0.92],
+  role:       [0.80, 0.96],
   partners:   [0.80, 0.94],
   footer:     [0.86, 1.00],
   tint:       [0.40, 1.00],
@@ -97,6 +98,15 @@ export const L = {
   nameMaxW: 620,
   nameCap: 84,
   nameTrack: -0.028,
+  /* The optional role-and-company line under the name. Deliberately sized like
+     the footer URL rather than like the name — it is an attribution, and at
+     name scale it would compete with the person it describes. Left in a dimmed
+     white rather than the accent so it stays subordinate to the date. */
+  roleGap: 44,        // role baseline below the name baseline
+  roleMaxW: 780,
+  roleCap: 28,
+  roleTrack: 0.16,
+  roleTone: 0.34,     // how far white is pulled toward black
   /* Brand wash: a left-to-right ramp toward DDX yellow, laid over the finished
      poster so the image and the type sit in one light.
 
@@ -489,6 +499,19 @@ export class Poster {
         } else {
           drawTracked(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center');
         }
+      });
+    }
+
+    /* Optional, and genuinely optional: nothing stands in for it when empty,
+       because a poster with no role reads as finished, while a greyed-out
+       "Your role" would read as a form someone abandoned. */
+    const role = (d.role || '').toUpperCase();
+    if (role) {
+      const roleSize = fitSize(c, role, L.roleMaxW, 500, L.roleTrack, L.roleCap);
+      const roleY = cityBase + L.nameGap + L.roleGap;
+      layer(c, cue('role', t), 12, () => {
+        c.fillStyle = mixHex(WHITE, '#000000', L.roleTone);
+        drawTracked(c, role, W / 2, roleY, roleSize, 500, L.roleTrack, 'center');
       });
     }
   }
