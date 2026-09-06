@@ -1,0 +1,4 @@
+# Test build. Nothing here should be indexed — the tour dates on these posters
+# are not all announced yet. Remove this file when the real domain goes live.
+User-agent: *
+Disallow: /

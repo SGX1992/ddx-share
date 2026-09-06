@@ -10,6 +10,38 @@ export const hasMp4 = () => typeof VideoEncoder !== 'undefined';
    background tab, and an export shouldn't stall because someone switched away. */
 const breathe = () => new Promise((r) => setTimeout(r, 0));
 
+/* Can this browser hand a file to the OS share sheet? That is the route to
+   Instagram and friends — there is no reliable direct-to-Instagram web API, but
+   Instagram shows up as a target in the native sheet, alongside Save to Photos.
+   Feature-detected with a real file, because canShare({files}) is the only
+   honest test: several browsers expose navigator.share but refuse files. */
+export function canShareFiles(type = 'image/png') {
+  try {
+    const probe = new File([new Blob([1])], 'probe' + (type === 'video/mp4' ? '.mp4' : '.png'), { type });
+    return Boolean(navigator.canShare?.({ files: [probe] }));
+  } catch {
+    return false;
+  }
+}
+
+/* Resolves 'shared' | 'cancelled' | 'unsupported'. Anything else throws.
+
+   Safari wants share() to happen inside the user gesture, and an export takes
+   long enough to fall outside it — so a NotAllowedError here is expected, not a
+   bug, and the caller falls back to a download. */
+export async function shareFile(blob, filename, title) {
+  const file = new File([blob], filename, { type: blob.type });
+  if (!navigator.canShare?.({ files: [file] })) return 'unsupported';
+  try {
+    await navigator.share({ files: [file], title });
+    return 'shared';
+  } catch (err) {
+    if (err?.name === 'AbortError') return 'cancelled';
+    if (err?.name === 'NotAllowedError') return 'unsupported';
+    throw err;
+  }
+}
+
 export function download(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

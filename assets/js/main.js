@@ -1,6 +1,6 @@
 import { Poster } from './poster.js';
 import { EDITIONS, DEFAULT_EDITION, byId, prettyDate } from './editions.js';
-import { download, hasMp4, toGif, toMp4, toPng, toWebm } from './exporters.js';
+import { canShareFiles, download, hasMp4, shareFile, toGif, toMp4, toPng, toWebm } from './exporters.js';
 import { backgroundVideo, clips, posterUrl } from './videobg.js';
 import { variants, thumbUrl } from './backgrounds.js';
 import { combo } from './combo.js';
@@ -549,7 +549,7 @@ function setStatus(msg) {
 async function run(button, job) {
   if (exporting) return;
   exporting = true;
-  const all = [mp4Btn, pngBtn, gifBtn, $('dockSave')];
+  const all = [mp4Btn, pngBtn, gifBtn, $('dockSave'), $('shareBtn'), $('shareBtnImage')];
   for (const b of all) b.disabled = true;
   const label = button.innerHTML;
   try {
@@ -571,25 +571,56 @@ async function run(button, job) {
 /* The jobs are named so more than one button can start them. The phone's
    collapsed dock has its own save button, and progress has to appear on
    whichever button was actually pressed — the one in the sheet is off-screen. */
-const jobs = {
-  png: async () => download(await toPng(poster), filename('png')),
-  gif: async (p) => download(await toGif(poster, p), filename('gif')),
-  mp4: async (p) => {
-    if (hasMp4()) return download(await toMp4(poster, p), filename('mp4'));
-    setStatus('This browser has no MP4 encoder — exporting WebM instead.');
-    download(await toWebm(poster, p), filename('webm'));
-  },
+/* Making the file and delivering it are separate on purpose: the buttons in the
+   editor always save, the share button always offers the OS sheet, and the one
+   on the dock does whichever this browser can manage. */
+const make = {
+  png: () => toPng(poster),
+  gif: (p) => toGif(poster, p),
+  mp4: (p) => (hasMp4() ? toMp4(poster, p) : toWebm(poster, p)),
+};
+const extFor = (kind) => (kind === 'mp4' && !hasMp4() ? 'webm' : kind);
+
+const saveJob = (kind) => async (p) => {
+  if (kind === 'mp4' && !hasMp4()) setStatus('This browser has no MP4 encoder — exporting WebM instead.');
+  download(await make[kind](p), filename(extFor(kind)));
 };
 
-pngBtn.addEventListener('click', () => run(pngBtn, jobs.png));
-gifBtn.addEventListener('click', () => run(gifBtn, jobs.gif));
-mp4Btn.addEventListener('click', () => run(mp4Btn, jobs.mp4));
+/* Hand it to the OS. Falls back to saving when the browser declines — Safari
+   wants share() inside the user gesture and an export runs past it, so a refusal
+   is expected rather than exceptional. */
+const shareJob = (kind) => async (p) => {
+  const blob = await make[kind](p);
+  const name = filename(extFor(kind));
+  const how = await shareFile(blob, name, 'I am going to DDX');
+  if (how === 'shared' || how === 'cancelled') return;
+  download(blob, name);
+};
+
+pngBtn.addEventListener('click', () => run(pngBtn, saveJob('png')));
+gifBtn.addEventListener('click', () => run(gifBtn, saveJob('gif')));
+mp4Btn.addEventListener('click', () => run(mp4Btn, saveJob('mp4')));
+
+/* The share button only exists where the OS can actually take a file. */
+for (const [id, kind] of [['shareBtnImage', 'png'], ['shareBtn', 'mp4']]) {
+  const btn = $(id);
+  if (!canShareFiles()) continue;
+  btn.hidden = false;
+  btn.addEventListener('click', () => run(btn, shareJob(kind)));
+}
 
 {
   const save = $('dockSave');
   const primary = () => (currentMode() === 'video' ? 'mp4' : 'png');
-  const syncDock = () => { save.textContent = `Download ${primary().toUpperCase()}`; };
-  save.addEventListener('click', () => run(save, jobs[primary()]));
+  /* Only the label, never the button — writing textContent on the button would
+     take the icon with it. */
+  const shares = canShareFiles();
+  const syncDock = () => {
+    const kind = extFor(primary()).toUpperCase();
+    $('dockSaveLabel').textContent = shares ? `Share ${kind}` : `Download ${kind}`;
+  };
+  $((shares ? 'dockShareIcon' : 'dockSaveIcon')).removeAttribute('hidden');
+  save.addEventListener('click', () => run(save, (shares ? shareJob : saveJob)(primary())));
   for (const i of modeInputs) i.addEventListener('change', syncDock);
   syncDock();
 }

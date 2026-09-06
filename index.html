@@ -8,12 +8,14 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="I am going to DDX">
 <meta property="og:description" content="Make your &ldquo;I am going&rdquo; post and let your network know which DDX you're joining.">
-<meta property="og:url" content="https://share.ddxconference.com/">
-<meta property="og:image" content="https://share.ddxconference.com/assets/img/og-image.png">
+<!-- TEST BUILD: point these back at https://share.ddxconference.com/ before launch -->
+<meta name="robots" content="noindex, nofollow">
+<meta property="og:url" content="https://sgx1992.github.io/ddx-share/">
+<meta property="og:image" content="https://sgx1992.github.io/ddx-share/assets/img/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://share.ddxconference.com/assets/img/og-image.png">
+<meta name="twitter:image" content="https://sgx1992.github.io/ddx-share/assets/img/og-image.png">
 <link rel="icon" href="assets/img/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -47,8 +49,15 @@
   </section>
 
   <div class="dock" id="dock">
-    <button class="dock__save" id="dockSave" type="button">Download PNG</button>
-    <button class="dock__edit" id="sheetOpen" type="button" aria-controls="sheet">Edit your poster</button>
+    <button class="dock__edit" id="sheetOpen" type="button" aria-controls="sheet">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></svg>
+      <span>Edit your poster</span>
+    </button>
+    <button class="dock__save" id="dockSave" type="button">
+      <svg id="dockSaveIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
+      <svg id="dockShareIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" hidden><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
+      <span id="dockSaveLabel">Download PNG</span>
+    </button>
   </div>
 
   <div class="sheet" id="sheet">
@@ -145,11 +154,19 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
         Download PNG
       </button>
+      <button id="shareBtnImage" class="cta cta--ghost" type="button" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
+        Share
+      </button>
     </div>
     <div class="actions" data-for="video" hidden>
       <button id="mp4Btn" class="cta" type="button">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
         MP4
+      </button>
+      <button id="shareBtn" class="cta cta--ghost" type="button" hidden>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
+        Share
       </button>
       <button id="gifBtn" class="cta cta--ghost" type="button">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
