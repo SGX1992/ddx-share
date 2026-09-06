@@ -128,7 +128,6 @@ export const L = {
   tintStrength: 0.30,
   tintScope: 'all',
 
-  partnersMaxW: 790,
   partnersTop: 1142,
   footBase: 1274,
   footSize: 22,
@@ -137,6 +136,11 @@ export const L = {
   footTone: 0.45,  // how far the accent is lifted toward white
   markW: 150,
 };
+/* The partner strip runs the full measure between the margins, so a row of
+   logos is as large as the poster can make it — derived from `side` rather than
+   set by hand, or the two drift the next time the margin moves. */
+L.partnersMaxW = W - L.side * 2;
+
 L.card.x = (W - L.card.w) / 2;
 L.card.bottom = L.card.y + L.card.h;
 
