@@ -1,0 +1,40 @@
+{
+  "_comment": "Background options per edition id. First entry is the default. Add a file to this list and it appears in the picker — nothing else needs editing. Entries in _shared are appended to every edition. An edition with no entry here falls back to probing <id>.avif/.jpg/.png/.webp, then to `default`.",
+  "_shared": [
+    { "file": "neutral-1.png", "label": "Ember" },
+    { "file": "neutral-2.png", "label": "Glow" },
+    { "file": "neutral-3.png", "label": "Onyx" }
+  ],
+  "san-diego": [
+    { "file": "san-diego.jpg",   "label": "Sunset Cliffs" },
+    { "file": "san-diego-3.jpg", "label": "Balboa Park" },
+    { "file": "san-diego-2.jpg", "label": "Beach" }
+  ],
+  "miami": [
+    { "file": "miami.avif",   "label": "Miami Beach" },
+    { "file": "miami-2.jpg",  "label": "Ocean Drive" },
+    { "file": "miami-3.jpg",  "label": "Art Deco" },
+    { "file": "miami-4.avif", "label": "Palms" }
+  ],
+  "london": [
+    { "file": "london.jpg",   "label": "Tower Bridge" },
+    { "file": "london-2.jpg", "label": "Big Ben" },
+    { "file": "london-3.jpg", "label": "Skyline" }
+  ],
+  "munich": [
+    { "file": "munich.avif",   "label": "Olympiapark" },
+    { "file": "munich-2.jpg",  "label": "Frauenkirche" },
+    { "file": "munich-3.jpg",  "label": "Marienplatz" },
+    { "file": "munich-4.jpg",  "label": "Altes Rathaus" }
+  ],
+  "new-york": [
+    { "file": "new-york.avif",  "label": "Central Park" },
+    { "file": "new-york-2.jpg", "label": "Chrysler" }
+  ],
+  "dubai":    [{ "file": "dubai.avif",    "label": "Burj Al Arab" }],
+  "tokyo": [
+    { "file": "tokyo.avif",     "label": "Skyline" },
+    { "file": "tokyo-alt.avif", "label": "Mt Fuji" }
+  ],
+  "default": []
+}

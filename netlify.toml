@@ -1,0 +1,52 @@
+# Deploy config for share.ddxconference.com
+# Static folder, no build step — Netlify just serves it.
+
+[build]
+  publish = "."
+  command = ""
+
+# The page itself must never be cached, or a redeployed poster keeps showing
+# the old layout to anyone who has been here before.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+# Code is small; keep it fresh so a fix reaches people the same day.
+[[headers]]
+  for = "/assets/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/assets/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"
+
+# Backgrounds and the clip are the heavy part — the video alone is several MB and
+# is fetched on every visit. Cache them, but only for an hour of hard freshness:
+# these files get swapped by hand and keep their names, so a long max-age would
+# leave people looking at artwork that has already been replaced.
+[[headers]]
+  for = "/assets/img/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=604800"
+
+[[headers]]
+  for = "/assets/video/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=604800"
+
+# The manifest decides which artwork exists, so it must not outlive the artwork.
+[[headers]]
+  for = "/assets/img/bg/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Nothing here should ever be indexed as a separate page or hotlinked as a doc.
+[[headers]]
+  for = "/*.md"
+  [headers.values]
+    X-Robots-Tag = "noindex"

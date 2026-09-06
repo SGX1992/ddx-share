@@ -1,0 +1,455 @@
+import { ACCENT, DISPLAY_WEIGHT, FONT, WHITE, capHeight, clamp, drawTracked, drawTrackedReveal, fitSize, mixHex, roundRect } from './brand.js';
+import { background } from './backgrounds.js';
+import { backgroundVideo, seek } from './videobg.js';
+
+export const W = 1080;
+export const H = 1350;
+export const STILL_LOOP = 8; // only used if a video export ever runs in image mode
+
+/* Exported so the whole layout — spacing, type caps, the brand wash — can be
+   nudged from the console while art-directing, without an edit-reload cycle. */
+/* The colour that changes nothing for each blend mode. White is neutral for
+   multiply; overlay and soft-light pivot around mid-grey instead. */
+/* The build-in. Each layer gets a window in the intro, as a fraction of
+   INTRO_MS, and fades up while sliding a few pixels into place. The headline is
+   deliberately early and the card late, so you watch the card crop into it —
+   the layering that makes the poster work is also what it shows you first.
+
+   Exports never see this: main.js calls skipIntro() before rendering. */
+const INTRO_MS = 5000;
+const NAME_REVEAL_MS = 620; // the name re-writes itself when it settles
+const BG_FADE_MS = 750; // cross-fade when the edition or the chosen shot changes
+const CUE = {
+  background: [0.00, 0.34],
+  headline:   [0.20, 0.46],
+  card:       [0.34, 0.62],
+  date:       [0.56, 0.72],
+  city:       [0.64, 0.84],
+  name:       [0.74, 0.92],
+  footer:     [0.82, 0.98],
+  tint:       [0.40, 1.00],
+};
+
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+/* 0 before the cue, 1 after it, eased in between. */
+function cue(name, t) {
+  const [from, to] = CUE[name];
+  if (t >= 1) return 1;
+  return easeOut(clamp((t - from) / (to - from), 0, 1));
+}
+
+/* Cover-fit onto the poster, anchored slightly above centre. */
+function paintCover(c, src, zoom, alpha) {
+  if (!src || alpha <= 0) return;
+  const iw = src.videoWidth || src.naturalWidth || src.width;
+  const ih = src.videoHeight || src.naturalHeight || src.height;
+  if (!iw || !ih) return;
+  const scale = Math.max(W / iw, H / ih) * zoom;
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const prev = c.globalAlpha;
+  c.globalAlpha = prev * alpha;
+  c.drawImage(src, (W - dw) / 2, (H - dh) * 0.42, dw, dh);
+  c.globalAlpha = prev;
+}
+
+/* Draw `body` faded up and nudged into place. p of 1 skips the save/restore
+   entirely, so a finished poster costs exactly what it did before the intro
+   existed — which matters because a 24-second export runs this 720 times. */
+function layer(c, p, rise, body) {
+  if (p <= 0) return;
+  if (p >= 1) return body();
+  c.save();
+  c.globalAlpha = p;
+  c.translate(0, (1 - p) * rise);
+  body();
+  c.restore();
+}
+
+const NEUTRAL = {
+  multiply: '#FFFFFF',
+  screen: '#000000',
+  overlay: '#808080',
+  'soft-light': '#808080',
+};
+
+export const L = {
+  side: 76,
+  headline: 'I AM GOING',
+  headMaxW: 840,
+  headOverlap: 0.2,   // how far the card crops into the headline, in cap heights
+  card: { w: 548, h: 616, r: 28, y: 272 },
+  dateGap: 62,        // date baseline above the card's bottom edge
+  dateMaxW: 640,
+  dateCap: 44,
+  cityGap: 92,        // city baseline below the card's bottom edge
+  cityMaxW: 904,
+  cityCap: 150,
+  cityTrack: -0.038,
+  nameGap: 100,
+  nameMaxW: 620,
+  nameCap: 84,
+  nameTrack: -0.028,
+  /* Brand wash: a left-to-right ramp toward DDX yellow, laid over the finished
+     poster so the image and the type sit in one light.
+
+     `tintMode` is a canvas blend mode and `tintStrength` runs 0–1. Each mode has a
+     different *neutral* colour — the one that changes nothing — so the ramp is
+     built from that colour outward and strength means the same in all of them.
+     Getting this wrong is the classic trap: white is neutral for multiply, but in
+     overlay white doubles the brightness and blows the left side out.
+
+       multiply    can only ever darken, so contrast survives — this is the one
+                   that behaves like a gel over the lens, and it is the default
+       soft-light  lifts the shadows as it warms them, which reads as washed out
+       overlay     more contrast still, but it turns a blue sky green
+
+     Strength is what keeps multiply usable: at 1 it drags white type all the way
+     to yellow, at 0.30 it reads as a warm cast over an image that still has its
+     blacks. */
+  tintMode: 'multiply',
+  tintStrength: 0.30,
+  tintScope: 'all',
+
+  footBase: 1274,
+  footSize: 22,
+  footWeight: 400,
+  footTrack: 0.42, // set wide, small and light — a caption, not a headline
+  footTone: 0.45,  // how far the accent is lifted toward white
+  markW: 150,
+};
+L.card.x = (W - L.card.w) / 2;
+L.card.bottom = L.card.y + L.card.h;
+
+export class Poster {
+  constructor() {
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = W;
+    this.canvas.height = H;
+    this.ctx = this.canvas.getContext('2d');
+
+    this.data = null;
+    this.mode = 'image'; // 'image' | 'video'
+    this.bg = null; // { image, placeholder } once resolved
+    this.bgPrev = null; // held only while a cross-fade is running
+    this.bgFade = 0;
+    this.video = null;
+    /* Framing is kept as a ratio of the available slack, not pixels, so zooming
+       doesn't throw the crop away and one number drives both the drag and the
+       slider. -0.25 starts a touch high: on a portrait the face is above centre. */
+    this.pan = { x: 0, y: -0.25 };
+
+    this.introStart = 0; // 0 = no intro running, render the finished poster
+    this.introKeepsBackground = false;
+    this.nameAt = 0;
+    this.wordmark = new Image();
+    this.wordmark.src = 'assets/img/ddx-wordmark.png';
+    this.wordmarkReady = new Promise((r) => {
+      this.wordmark.onload = r;
+      this.wordmark.onerror = r;
+    });
+  }
+
+  get card() {
+    return L.card;
+  }
+
+  /* `keepBackground` is for a replay after an edition change: the cross-fade is
+     already carrying the image across, so fading the background up from nothing
+     as well would blank the poster for a frame before rebuilding it. Everything
+     in front of it still deals in exactly as it does on first load. */
+  beginIntro({ keepBackground = false } = {}) {
+    this.introStart = performance.now();
+    this.introKeepsBackground = keepBackground;
+  }
+
+  /* Anything that needs the finished poster — every export — calls this first. */
+  skipIntro() {
+    this.introStart = 0;
+    this.nameAt = 0;
+  }
+
+  /* Called once typing settles, not on every keystroke — restarting the reveal
+     per character would just make the line strobe. */
+  pulseName() {
+    this.nameAt = performance.now();
+  }
+
+  get introT() {
+    if (!this.introStart) return 1;
+    const t = (performance.now() - this.introStart) / INTRO_MS;
+    if (t >= 1) {
+      this.introStart = 0;
+      return 1;
+    }
+    return t;
+  }
+
+  /* Video mode loops for exactly as long as the clip; image mode is a still, so
+     the number only matters if something asks it for a video anyway. */
+  get loopSeconds() {
+    const d = this.mode === 'video' ? this.video?.duration : 0;
+    return Number.isFinite(d) && d > 0.2 ? d : STILL_LOOP;
+  }
+
+  /* Background loading is async, so the poster keeps rendering the old one until
+     the new edition's image is in — no flash of empty frame while switching. */
+  async setData(data) {
+    const bgChanged =
+      this.data?.edition?.id !== data.edition.id || this.data?.bgIndex !== data.bgIndex;
+    if (this.data && this.data.photo !== data.photo) this.pan = { x: 0, y: -0.25 };
+    this.data = data;
+    this.mode = data.mode === 'video' ? 'video' : 'image';
+
+    if (bgChanged || !this.bg) {
+      const next = await background(data.edition, data.bgIndex || 0);
+      /* Hold the outgoing image so the new one can rise through it. Skipped on
+         the very first load, where there is nothing to fade from. */
+      if (this.bg && this.bg.image !== next.image) {
+        this.bgPrev = this.bg;
+        this.bgFade = performance.now();
+      }
+      this.bg = next;
+    }
+    if (this.mode === 'video' && !this.video) this.video = await backgroundVideo();
+
+    /* The clip only runs while it is on screen. Exports pause it and seek. */
+    if (this.video) {
+      if (this.mode === 'video') this.video.play().catch(() => {});
+      else this.video.pause();
+    }
+    return this.bg;
+  }
+
+  /* Put the background on the exact frame for `seconds`, then renderAt draws it.
+     A no-op for a still, so image exports stay synchronous in practice. */
+  async prepare(seconds) {
+    if (this.mode !== 'video' || !this.video) return;
+    this.video.pause();
+    await seek(this.video, seconds % this.loopSeconds);
+  }
+
+  resume() {
+    if (this.mode === 'video') this.video?.play().catch(() => {});
+  }
+
+  /* How the photo is laid into the card: cover-fit, then zoom, then pan —
+     clamped so a gap can never open at the edges. */
+  photoRect() {
+    const p = this.data?.photo;
+    if (!p) return null;
+    const iw = p instanceof HTMLImageElement ? p.naturalWidth : p.width;
+    const ih = p instanceof HTMLImageElement ? p.naturalHeight : p.height;
+    const scale = Math.max(L.card.w / iw, L.card.h / ih) * (this.data.photoZoom || 1);
+    const dw = iw * scale;
+    const dh = ih * scale;
+    const slackX = (dw - L.card.w) / 2;
+    const slackY = (dh - L.card.h) / 2;
+    return {
+      dw, dh, slackX, slackY,
+      x: L.card.x - slackX + clamp(this.pan.x, -1, 1) * slackX,
+      y: L.card.y - slackY + clamp(this.pan.y, -1, 1) * slackY,
+    };
+  }
+
+  /* Drag deltas arrive in poster pixels; slack converts them to the ratio. */
+  nudgePhoto(dx, dy) {
+    const r = this.photoRect();
+    if (!r) return;
+    if (r.slackX > 0.5) this.pan.x = clamp(this.pan.x + dx / r.slackX, -1, 1);
+    if (r.slackY > 0.5) this.pan.y = clamp(this.pan.y + dy / r.slackY, -1, 1);
+  }
+
+  setFraming(y) {
+    this.pan.y = clamp(y, -1, 1);
+  }
+
+  renderAt() {
+    const c = this.ctx;
+    const d = this.data;
+
+    c.fillStyle = '#000';
+    c.fillRect(0, 0, W, H);
+    if (!d) return this.canvas;
+
+    const t = this.introT;
+    const bg = this.introKeepsBackground ? 1 : cue('background', t);
+
+    layer(c, bg, 0, () => {
+      this.drawBackground(c, 1 + (1 - bg) * 0.06); // settles out of a slow push-in
+      if (L.tintScope === 'background') this.drawTint(c, cue('tint', t));
+      this.drawScrim(c);
+    });
+
+    layer(c, cue('headline', t), 20, () => this.drawHeadline(c));
+    this.drawCard(c, cue('card', t));
+    this.drawCopy(c, t);
+    layer(c, cue('footer', t), 14, () => this.drawFooter(c));
+    if (L.tintScope === 'all') this.drawTint(c, cue('tint', t));
+    return this.canvas;
+  }
+
+  /* Video mode draws the clip's current frame and adds no motion of its own —
+     the footage already moves. A still gets no push-in either: image mode only
+     ever exports a PNG, so animating it would just make that PNG's crop a
+     lottery. Both are cover-fit and anchored slightly above centre. */
+  drawBackground(c, zoom = 1) {
+    const useVideo = this.mode === 'video' && this.video && this.video.readyState >= 2;
+    if (useVideo) return paintCover(c, this.video, zoom, 1);
+
+    let p = 1;
+    if (this.bgFade) {
+      p = clamp((performance.now() - this.bgFade) / BG_FADE_MS, 0, 1);
+      if (p >= 1) {
+        this.bgFade = 0;
+        this.bgPrev = null;
+      }
+    }
+    /* The outgoing shot stays put underneath while the new one rises through it
+       and settles out of a slight push-in — a swap you can follow rather than a
+       cut you only notice afterwards. */
+    if (this.bgPrev && p < 1) paintCover(c, this.bgPrev.image, zoom, 1);
+    paintCover(c, this.bg?.image, zoom * (1 + (1 - p) * 0.05), this.bgPrev ? easeOut(p) : 1);
+  }
+
+  /* Two passes: an even knock-back over the whole photo so white type stays
+     legible on any image, then the fall to solid black that the lower half of
+     the poster is built on. */
+  drawScrim(c) {
+    /* Light enough that a bright beach shot still reads as one — the headline's
+       contrast comes from the top wash below, not from flattening the photo. */
+    c.fillStyle = 'rgba(0,0,0,.12)';
+    c.fillRect(0, 0, W, H);
+
+    /* The headline is white and the background is whatever someone uploads —
+       this top-down wash is what guarantees it stays readable over a bright sky
+       or a pale concrete ceiling. */
+    const top = c.createLinearGradient(0, 0, 0, H * 0.30);
+    top.addColorStop(0, 'rgba(0,0,0,.50)');
+    top.addColorStop(0.5, 'rgba(0,0,0,.16)');
+    top.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = top;
+    c.fillRect(0, 0, W, H * 0.30);
+
+    const fadeTop = H * 0.28;
+    const fadeEnd = H * 0.60;
+    const g = c.createLinearGradient(0, fadeTop, 0, fadeEnd);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.5, 'rgba(0,0,0,.62)');
+    g.addColorStop(1, 'rgba(0,0,0,1)');
+    c.fillStyle = g;
+    c.fillRect(0, fadeTop, W, fadeEnd - fadeTop);
+    c.fillStyle = '#000';
+    c.fillRect(0, fadeEnd - 1, W, H - fadeEnd + 1);
+  }
+
+  /* Sits *behind* the card — the card crops its lower edge, which is what gives
+     the layout its depth. Drawn before the card for exactly that reason. */
+  drawHeadline(c) {
+    const size = fitSize(c, L.headline, L.headMaxW, DISPLAY_WEIGHT, -0.015);
+    const base = L.card.y + capHeight(c, size, DISPLAY_WEIGHT) * L.headOverlap;
+    c.fillStyle = WHITE;
+    drawTracked(c, L.headline, W / 2, base, size, DISPLAY_WEIGHT, -0.015, 'center');
+  }
+
+  drawCard(c, progress = 1) {
+    if (progress <= 0) return;
+    const { x, y, w, h, r } = L.card;
+    c.save();
+    c.globalAlpha = progress;
+    if (progress < 1) {
+      const k = 0.94 + 0.06 * progress;
+      c.translate(x + w / 2, y + h / 2);
+      c.scale(k, k);
+      c.translate(-(x + w / 2), -(y + h / 2));
+    }
+    roundRect(c, x, y, w, h, r);
+    c.clip();
+
+    c.fillStyle = '#14161A';
+    c.fillRect(x, y, w, h);
+
+    const p = this.photoRect();
+    if (p) c.drawImage(this.data.photo, p.x, p.y, p.dw, p.dh);
+
+    /* The fade the copy sits on. Ends fully black so the card dissolves into the
+       poster instead of stopping at a hard edge. */
+    const g = c.createLinearGradient(0, y + h * 0.42, 0, y + h);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(0.45, 'rgba(0,0,0,.55)');
+    g.addColorStop(1, 'rgba(0,0,0,1)');
+    c.fillStyle = g;
+    c.fillRect(x, y, w, h);
+    c.restore();
+  }
+
+  drawCopy(c, t = 1) {
+    const d = this.data;
+
+    const dateSize = fitSize(c, d.edition.date, L.dateMaxW, 600, 0.24, L.dateCap);
+    layer(c, cue('date', t), 12, () => {
+      c.fillStyle = ACCENT;
+      drawTracked(c, d.edition.date, W / 2, L.card.bottom - L.dateGap, dateSize, 600, 0.24, 'center');
+    });
+
+    const city = `DDX ${d.edition.city}`.toUpperCase();
+    const citySize = fitSize(c, city, L.cityMaxW, DISPLAY_WEIGHT, L.cityTrack, L.cityCap);
+    const cityBase = L.card.bottom + L.cityGap;
+    layer(c, cue('city', t), 18, () => {
+      c.fillStyle = WHITE;
+      drawTracked(c, city, W / 2, cityBase, citySize, DISPLAY_WEIGHT, L.cityTrack, 'center');
+    });
+
+    const name = (d.name || '').toUpperCase();
+    if (name) {
+      const nameSize = fitSize(c, name, L.nameMaxW, 700, L.nameTrack, L.nameCap);
+      const y = cityBase + L.nameGap;
+      let reveal = 1;
+      if (this.nameAt) {
+        reveal = (performance.now() - this.nameAt) / NAME_REVEAL_MS;
+        if (reveal >= 1) {
+          this.nameAt = 0;
+          reveal = 1;
+        }
+      }
+      layer(c, cue('name', t), 14, () => {
+        c.fillStyle = WHITE;
+        if (reveal < 1) {
+          drawTrackedReveal(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center', reveal);
+        } else {
+          drawTracked(c, name, W / 2, y, nameSize, 700, L.nameTrack, 'center');
+        }
+      });
+    }
+  }
+
+  drawTint(c, progress = 1) {
+    if (!L.tintStrength || progress <= 0) return;
+    const neutral = NEUTRAL[L.tintMode] || '#FFFFFF';
+    const end = mixHex(neutral, ACCENT, L.tintStrength * progress);
+    const g = c.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, neutral);
+    g.addColorStop(0.32, mixHex(neutral, end, 0.22));
+    g.addColorStop(1, end);
+    c.save();
+    c.globalCompositeOperation = L.tintMode;
+    c.fillStyle = g;
+    c.fillRect(0, 0, W, H);
+    c.restore();
+  }
+
+  drawFooter(c) {
+    c.fillStyle = mixHex(ACCENT, '#FFFFFF', L.footTone);
+    drawTracked(c, 'DDXCONFERENCE.COM', L.side, L.footBase, L.footSize, L.footWeight, L.footTrack, 'left');
+
+    const wm = this.wordmark;
+    if (wm.naturalWidth) {
+      const w = L.markW;
+      const h = (w * wm.naturalHeight) / wm.naturalWidth;
+      c.drawImage(wm, W - L.side - w, L.footBase - h * 0.78, w, h);
+    }
+  }
+}
+
+export { FONT };
