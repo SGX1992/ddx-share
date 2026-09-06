@@ -48,11 +48,20 @@ export function combo({ select, items, labelledBy }) {
     li.id = `${select.id}-opt-${i}`;
     li.style.setProperty('--i', i);
     li.innerHTML = `<b>${item.title}</b><em>${item.meta || ''}</em>`;
+    /* The row's index is looked up at click time, never captured here: `drop`
+       splices entries out of both arrays, and a handler that closed over its
+       original index would then commit its neighbour — or, for the last row,
+       an index past the end of the list. */
     li.addEventListener('click', () => {
-      commit(i);
+      const n = options.indexOf(li);
+      if (n < 0) return;
+      commit(n);
       close(true);
     });
-    li.addEventListener('mousemove', () => setActive(i));
+    li.addEventListener('mousemove', () => {
+      const n = options.indexOf(li);
+      if (n >= 0) setActive(n);
+    });
     list.append(li);
     return li;
   });
