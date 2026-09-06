@@ -73,6 +73,7 @@ img,canvas,svg{max-width:100%}
   outline:none;transition:border-color .15s;
 }
 .field input[type=text]:focus{border-color:var(--accent)}
+.field input[type=text]::placeholder{color:#4A4A4A}
 
 /* ---------- edition combobox ---------- */
 .combo{position:relative}
@@ -127,6 +128,13 @@ img,canvas,svg{max-width:100%}
   content:"";position:absolute;left:4px;top:9px;bottom:9px;width:2px;
   border-radius:2px;background:var(--accent);
 }
+
+/* Everything downstream of the edition waits for it. Greyed and inert rather
+   than hidden, so the shape of what's coming is visible from the start. */
+body.needs-edition .needs-edition{opacity:.34;pointer-events:none;filter:saturate(.3)}
+body.needs-edition .needs-edition *{cursor:default!important}
+.edition-hint{font-size:12.5px;color:var(--accent);margin-top:-6px}
+body:not(.needs-edition) .edition-hint{display:none}
 
 /* ---------- headline chips ---------- */
 .chips{display:flex;gap:5px}

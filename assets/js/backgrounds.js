@@ -46,10 +46,14 @@ const clean = (list) =>
    set from `_shared`, which every edition offers. Never empty-handed — an edition
    with nothing of its own reports whatever `default` offers, or a drawn stand-in. */
 export async function variants(edition) {
-  if (variantCache.has(edition.id)) return variantCache.get(edition.id);
+  const key = edition?.id || '_none';
+  if (variantCache.has(key)) return variantCache.get(key);
   const p = (async () => {
     const m = await manifest();
     const shared = clean(m._shared);
+    /* With no edition chosen there is nothing to illustrate, so the poster wears
+       the first neutral and offers no choice at all. */
+    if (!edition) return shared.slice(0, 1);
     const own = clean(m[edition.id]);
     if (own.length) return [...own, ...shared];
 
@@ -63,7 +67,7 @@ export async function variants(edition) {
     if (dflt) return [{ file: dflt.file, label: dflt.label }, ...shared];
     return shared;
   })();
-  variantCache.set(edition.id, p);
+  variantCache.set(key, p);
   return p;
 }
 
@@ -92,6 +96,7 @@ export function forget() {
 /* A drawn stand-in: the edition's tint sunk into black, with the DDX chevron
    repeated as a faint watermark so an unfinished poster still looks deliberate. */
 function standIn(edition) {
+  edition = edition || {};
   const W = 1080;
   const H = 1350;
   const c = document.createElement('canvas');

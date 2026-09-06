@@ -18,9 +18,13 @@ export const EDITIONS = [
   { id: 'new-york',  city: 'New York',  date: '25TH JUNE 2027',      dated: true,  tint: '#2E3440' },
 ];
 
-export const DEFAULT_EDITION = 'san-diego';
+/* Nothing is selected to begin with. A link shared with Miami people must not
+   arrive with San Diego already chosen — the poster says just "DDX" until
+   someone picks, and everything downstream of the choice stays locked. */
+export const NO_EDITION = '';
+export const DEFAULT_EDITION = NO_EDITION;
 
-export const byId = (id) => EDITIONS.find((e) => e.id === id) || EDITIONS[0];
+export const byId = (id) => EDITIONS.find((e) => e.id === id) || null;
 
 /* Nice-cased for the picker: "17TH SEPTEMBER 2026" -> "17th September 2026". */
 export const prettyDate = (e) =>

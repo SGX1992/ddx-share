@@ -1,9 +1,10 @@
 import { Poster } from './poster.js';
-import { EDITIONS, DEFAULT_EDITION, byId, prettyDate } from './editions.js';
+import { EDITIONS, DEFAULT_EDITION, NO_EDITION, byId, prettyDate } from './editions.js';
 import { canShareFiles, download, hasMp4, shareFile, toGif, toMp4, toPng, toWebm } from './exporters.js';
 import { backgroundVideo, clips, posterUrl } from './videobg.js';
 import { variants, thumbUrl } from './backgrounds.js';
 import { combo } from './combo.js';
+import { variant } from './variant.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -19,6 +20,19 @@ const previewCanvas = $('previewCanvas');
 const previewCtx = previewCanvas.getContext('2d');
 const modeInputs = [...document.querySelectorAll('input[name="mode"]')];
 const headlineInputs = [...document.querySelectorAll('input[name="headline"]')];
+
+/* The speaker build differs only in its wording and the label above the
+   headline — everything else, including every asset, is shared. */
+{
+  const v = variant();
+  document.title = v.title;
+  headlineInputs.forEach((input, i) => {
+    if (i >= v.headlines.length) return;   // the last one is the "none" option
+    input.value = v.headlines[i];
+    const span = input.nextElementSibling;
+    if (span) span.textContent = v.chips[i];
+  });
+}
 const bgField = $('bgField');
 const bgThumbs = $('bgThumbs');
 const bgFieldLabel = bgField.querySelector('span');
@@ -28,6 +42,12 @@ const mp4Btn = $('mp4Btn');
 const pngBtn = $('pngBtn');
 const gifBtn = $('gifBtn');
 
+{
+  const none = document.createElement('option');
+  none.value = NO_EDITION;
+  none.textContent = 'Choose your edition';
+  editionInput.append(none);
+}
 for (const e of EDITIONS) {
   const o = document.createElement('option');
   o.value = e.id;
@@ -51,7 +71,10 @@ editionInput.value = DEFAULT_EDITION;
 combo({
   select: editionInput,
   labelledBy: 'editionLabel',
-  items: EDITIONS.map((e) => ({ value: e.id, title: `DDX ${e.city}`, meta: prettyDate(e) })),
+  items: [
+    { value: NO_EDITION, title: 'Choose your edition', meta: '' },
+    ...EDITIONS.map((e) => ({ value: e.id, title: `DDX ${e.city}`, meta: prettyDate(e) })),
+  ],
 });
 
 const poster = new Poster();
@@ -141,6 +164,11 @@ function markChecked() {
 }
 
 async function renderThumbs(edition, mode) {
+  if (!edition) {
+    bgField.hidden = true;
+    thumbsKey = null;
+    return;
+  }
   const key = `${mode}|${edition.id}`;
   if (key === thumbsKey) {
     markChecked();
@@ -191,9 +219,12 @@ let pending = 0;
 async function rebuild() {
   const token = ++pending;
   const mode = currentMode();
+  const edition = byId(editionInput.value);
+  /* One class drives the whole locked state; the fields carry .needs-edition. */
+  document.body.classList.toggle('needs-edition', !edition);
   for (const g of actionGroups) g.hidden = g.dataset.for !== mode;
   bgFieldLabel.textContent = mode === 'video' ? 'Clip' : 'Background';
-  renderThumbs(byId(editionInput.value), mode);
+  renderThumbs(edition, mode);
   await poster.setData(readForm());
   if (token !== pending) return; // a newer edition or format won the race
 }
@@ -542,7 +573,8 @@ function slug() {
   const s = (nameInput.value.trim() || 'ddx').toLowerCase().replace(/[^a-z0-9]+/g, '-');
   return s.replace(/^-|-$/g, '') || 'ddx';
 }
-const filename = (ext) => `ddx-${editionInput.value}-i-am-going-${slug()}.${ext}`;
+const filename = (ext) =>
+  `ddx${editionInput.value ? '-' + editionInput.value : ''}-${variant().slug}-${slug()}.${ext}`;
 
 function setStatus(msg) {
   statusEl.hidden = !msg;
@@ -595,7 +627,7 @@ const saveJob = (kind) => async (p) => {
 const shareJob = (kind) => async (p) => {
   const blob = await make[kind](p);
   const name = filename(extFor(kind));
-  const how = await shareFile(blob, name, 'I am going to DDX');
+  const how = await shareFile(blob, name, variant().title);
   if (how === 'shared' || how === 'cancelled') return;
   download(blob, name);
 };

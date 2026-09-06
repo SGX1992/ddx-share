@@ -1,5 +1,6 @@
 import { ACCENT, DISPLAY_WEIGHT, FONT, WHITE, capHeight, clamp, drawTracked, drawTrackedReveal, fitSize, mixHex, roundRect } from './brand.js';
 import { background } from './backgrounds.js';
+import { variant } from './variant.js';
 import { backgroundVideo, seek } from './videobg.js';
 
 export const W = 1080;
@@ -75,16 +76,15 @@ const NEUTRAL = {
   'soft-light': '#808080',
 };
 
-/* The opening line. All three are ten characters, so the fitted size barely
-   moves between them and the poster keeps its rhythm whichever you pick. */
-export const HEADLINES = ['I AM GOING', 'SEE YOU AT', 'MEET ME AT'];
-
 export const L = {
   side: 76,
-  headline: HEADLINES[0],
+  headline: 'I AM GOING',
   headMaxW: 936,
   headTrack: -0.038,
   headOverlap: 0.2,   // how far the card crops into the headline, in cap heights
+  eyebrowSize: 22,    // the small wide line above it, on the speaker build
+  eyebrowTrack: 0.42,
+  eyebrowGap: 26,
   card: { w: 548, h: 616, r: 28, y: 272 },
   dateGap: 62,        // date baseline above the card's bottom edge
   dateMaxW: 640,
@@ -214,7 +214,7 @@ export class Poster {
      the new edition's image is in — no flash of empty frame while switching. */
   async setData(data) {
     const bgChanged =
-      this.data?.edition?.id !== data.edition.id || this.data?.bgIndex !== data.bgIndex;
+      this.data?.edition?.id !== data.edition?.id || this.data?.bgIndex !== data.bgIndex;
     if (this.data && this.data.photo !== data.photo) this.pan = { x: 0, y: -0.25 };
     if (this.data && this.data.name !== data.name) {
       this.nameFrom = Poster.sharedPrefix(
@@ -238,7 +238,7 @@ export class Poster {
       this.bg = next;
     }
     if (this.mode === 'video') {
-      const want = `${data.edition.id}|${data.videoIndex || 0}`;
+      const want = `${data.edition?.id || '-'}|${data.videoIndex || 0}`;
       if (!this.video || this.videoKey !== want) {
         this.video = await backgroundVideo(data.edition, data.videoIndex || 0);
         this.videoKey = want;
@@ -382,11 +382,25 @@ export class Poster {
     /* `??` rather than `||`, because an empty string is a real choice here —
        the "None" option — and must not fall through to the default. */
     const text = this.data?.headline ?? L.headline;
-    if (!text) return;
-    const size = fitSize(c, text, L.headMaxW, DISPLAY_WEIGHT, L.headTrack);
-    const base = L.card.y + capHeight(c, size, DISPLAY_WEIGHT) * L.headOverlap;
-    c.fillStyle = WHITE;
-    drawTracked(c, text, W / 2, base, size, DISPLAY_WEIGHT, L.headTrack, 'center');
+    const eyebrow = variant().eyebrow;
+    if (!text && !eyebrow) return;
+
+    let capTop = L.card.y;
+    if (text) {
+      const size = fitSize(c, text, L.headMaxW, DISPLAY_WEIGHT, L.headTrack);
+      const cap = capHeight(c, size, DISPLAY_WEIGHT);
+      const base = L.card.y + cap * L.headOverlap;
+      capTop = base - cap;
+      c.fillStyle = WHITE;
+      drawTracked(c, text, W / 2, base, size, DISPLAY_WEIGHT, L.headTrack, 'center');
+    }
+
+    /* Sits above the headline, set small and wide — the same voice as the URL in
+       the footer, so it reads as a label rather than a second headline. */
+    if (eyebrow) {
+      c.fillStyle = mixHex(ACCENT, '#FFFFFF', L.footTone); // the footer's tone
+      drawTracked(c, eyebrow, W / 2, capTop - L.eyebrowGap, L.eyebrowSize, 600, L.eyebrowTrack, 'center');
+    }
   }
 
   drawCard(c, progress = 1) {
@@ -434,13 +448,16 @@ export class Poster {
   drawCopy(c, t = 1) {
     const d = this.data;
 
-    const dateSize = fitSize(c, d.edition.date, L.dateMaxW, 600, 0.24, L.dateCap);
-    layer(c, cue('date', t), 12, () => {
-      c.fillStyle = ACCENT;
-      drawTracked(c, d.edition.date, W / 2, L.card.bottom - L.dateGap, dateSize, 600, 0.24, 'center');
-    });
+    /* No edition chosen yet: no date to print, and the mark stands alone. */
+    if (d.edition?.date) {
+      const dateSize = fitSize(c, d.edition.date, L.dateMaxW, 600, 0.24, L.dateCap);
+      layer(c, cue('date', t), 12, () => {
+        c.fillStyle = ACCENT;
+        drawTracked(c, d.edition.date, W / 2, L.card.bottom - L.dateGap, dateSize, 600, 0.24, 'center');
+      });
+    }
 
-    const city = `DDX ${d.edition.city}`.toUpperCase();
+    const city = (d.edition ? `DDX ${d.edition.city}` : 'DDX').toUpperCase();
     const citySize = fitSize(c, city, L.cityMaxW, DISPLAY_WEIGHT, L.cityTrack, L.cityCap);
     const cityBase = L.card.bottom + L.cityGap;
     layer(c, cue('city', t), 18, () => {
