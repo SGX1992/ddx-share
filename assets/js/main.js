@@ -509,7 +509,10 @@ fileInput.addEventListener('change', () => {
     opener.setAttribute('aria-expanded', String(open));
     if (open) sheet.scrollTop = 0;
   };
-  setSheet(true);
+  /* Closed to begin with: the poster is what someone came to see, and on a
+     phone an open editor hides most of it behind controls they have not asked
+     for yet. The yellow pill is the invitation. */
+  setSheet(false);
   grab.addEventListener('click', () => setSheet(false));
   opener.addEventListener('click', () => setSheet(true));
 
