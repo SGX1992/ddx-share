@@ -16,6 +16,8 @@
   --accent:#FFF204;
   --text:#ffffff;
   --text-dim:#9A9A9A;
+  /* One lever for the whole desktop layout — see the desktop block. */
+  --ui-scale:.9;
   /* The accent, broken out so the stylesheet carries no literal brand colour.
      --accent-rgb feeds rgba() tints, --accent-dim is the trough of the running
      highlight, --accent-edge the border a control takes on hover. */
@@ -27,7 +29,13 @@
 
 html,body{
   background:var(--bg);color:var(--text);font-family:var(--font);
-  min-height:100%;max-width:100%;overflow-x:hidden;
+  min-height:100%;max-width:100%;
+  /* `clip`, not `hidden`. Both stop sideways overflow, but `hidden` also turns
+     the element into a scroll container — and every position:sticky inside then
+     resolves against that container instead of the viewport, so none of them
+     ever engage. That is what kept the poster preview from holding its place
+     while the panel scrolled past it. */
+  overflow-x:clip;
   -webkit-font-smoothing:antialiased;
 }
 img,canvas,svg{max-width:100%}
@@ -305,6 +313,50 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
 .cam-frame{position:absolute;inset:0;margin:auto;height:100%;aspect-ratio:3/4;border:2px dashed rgba(255,255,255,.55);border-radius:8px;pointer-events:none}
 .cam-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:16px}
 .cam-actions .photo-btn{flex:0 0 auto;padding:14px 22px}
+
+/* ---------- desktop ----------
+   Everything here is set in px, which suits a tool this dense — but it also
+   means a Windows display at its usual 125% renders the whole thing a quarter
+   larger than it was drawn, and Macs at 100% were the only place it looked the
+   intended size. One scale on the container brings it back without re-tuning
+   forty separate values, and leaves a single knob to turn if it needs to move
+   again. */
+@media (min-width:881px){
+  .layout{
+    zoom:var(--ui-scale);
+    /* Two rows, not three: the actions move inside the sheet below. */
+    grid-template-areas:"brand preview" "panel preview";
+  }
+
+  /* On phones the sheet is the slide-up panel; on desktop it used to vanish with
+     display:contents. It stays a real column here instead, because a sticky
+     element needs a containing block taller than itself to have anywhere to
+     travel — as its own grid row, the action bar had none. */
+  .sheet{
+    display:flex;flex-direction:column;gap:22px;
+    grid-area:panel;min-width:0;
+  }
+
+  /* The one part of the page that says what you actually get. It sat at the
+     bottom of a column that scrolls, so on a short window it was never on
+     screen at the moment someone decided whether the poster was finished.
+     Now it rides along, over a blur so the fields passing underneath stay
+     legible as texture without competing with the buttons. */
+  .actions-area{
+    position:sticky;bottom:0;z-index:3;
+    margin:0 -16px;padding:14px 16px 16px;
+    background:rgba(5,5,5,.7);
+    backdrop-filter:blur(16px) saturate(140%);
+    -webkit-backdrop-filter:blur(16px) saturate(140%);
+    border-top:1px solid rgba(255,255,255,.07);
+    border-radius:14px 14px 0 0;
+    /* One row: what you get on the left, the way in on the right. It wraps
+       rather than squeezing when the video exports put three buttons in the
+       bar, and the auto margin keeps the link right-aligned either way. */
+    flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 14px;
+  }
+  .actions-area .ticket-line{margin-left:auto;margin-top:0}
+}
 
 @media (max-width:880px){
   /* Phone layout: the poster is pinned to the top and the controls become a
