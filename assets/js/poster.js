@@ -98,6 +98,13 @@ export const L = {
   nameMaxW: 620,
   nameCap: 84,
   nameTrack: -0.028,
+  /* The edition outranks the person on this poster. A fixed cap was fine while
+     every edition was a city, but a long name — "DDX Tokyo Roundtable" — fits
+     the width only by setting small, and would then have sat under a name at
+     full size. Capping the name against whatever size the title actually
+     reached keeps the order right at any length; the short editions are all
+     above this ceiling already, so nothing about them moves. */
+  nameToTitle: 0.82,
   /* The optional role-and-company line under the name. Deliberately sized like
      the footer URL rather than like the name — it is an attribution, and at
      name scale it would compete with the person it describes. Left in a dimmed
@@ -483,7 +490,8 @@ export class Poster {
     const placeholder = !d.edition && !d.name;
     const name = (d.name || (placeholder ? 'Your name' : '')).toUpperCase();
     if (name) {
-      const nameSize = fitSize(c, name, L.nameMaxW, 700, L.nameTrack, L.nameCap);
+      const nameCap = Math.min(L.nameCap, citySize * L.nameToTitle);
+      const nameSize = fitSize(c, name, L.nameMaxW, 700, L.nameTrack, nameCap);
       const y = cityBase + L.nameGap;
       let reveal = 1;
       if (this.nameAt) {

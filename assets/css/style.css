@@ -118,7 +118,7 @@ img,canvas,svg{max-width:100%}
 
 /* One line: the city carries the weight, the date trails it in a lighter tone. */
 .combo__value{display:flex;align-items:baseline;gap:9px;min-width:0}
-.combo__value b{font-size:16px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
+.combo__value b{font-size:16px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
 .combo__value em{font-style:normal;font-size:12.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .combo__chev{display:flex;color:var(--text-dim);flex:0 0 auto}
 .combo__chev svg{width:18px;height:18px}
@@ -130,12 +130,15 @@ img,canvas,svg{max-width:100%}
   background:#0A0A0A;border:1px solid var(--input-border);border-radius:12px;
   box-shadow:0 18px 44px rgba(0,0,0,.6);
 }
+/* Stacked, not side by side: pushing the date to the right worked while every
+   entry was a city, but a longer name and a date then compete for one line and
+   the name is the part that gets truncated. */
 .combo__opt{
-  display:flex;align-items:baseline;gap:9px;
-  padding:9px 12px;border-radius:8px;cursor:pointer;position:relative;
+  display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:8px 12px;border-radius:8px;cursor:pointer;position:relative;
 }
-.combo__opt b{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap}
-.combo__opt em{font-style:normal;font-size:12.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-left:auto}
+.combo__opt b{font-size:15px;font-weight:600;letter-spacing:-.01em;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.combo__opt em{font-style:normal;font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .combo__opt.is-active{background:rgba(255,255,255,.07)}
 .combo__opt[aria-selected="true"] b{color:var(--accent)}
 /* A hairline marks the current edition without stealing the active highlight. */
