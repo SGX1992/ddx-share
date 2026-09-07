@@ -154,32 +154,36 @@
   </section>
 
   <section class="actions-area">
-    <div class="actions needs-edition" data-for="image">
-      <button id="pngBtn" class="cta" type="button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
-        Download PNG
-      </button>
-      <button id="shareBtnImage" class="cta cta--ghost" type="button" hidden>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
-        Share
-      </button>
-    </div>
-    <div class="actions needs-edition" data-for="video" hidden>
-      <button id="mp4Btn" class="cta" type="button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
-        MP4
-      </button>
-      <button id="shareBtn" class="cta cta--ghost" type="button" hidden>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
-        Share
-      </button>
-      <button id="gifBtn" class="cta cta--ghost" type="button">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
-        GIF
-      </button>
-    </div>
-    <p id="exportStatus" class="status" hidden></p>
-    <p class="ticket-line">Not registered yet? <a href="https://www.ddxconference.com" target="_blank" rel="noopener">Get your DDX ticket &rarr;</a></p>
+    <!-- Only a box on desktop, where the bar runs full-bleed and its contents
+         have to line up with the columns above. `display:contents` on phones. -->
+    <div class="actions-bar">
+      <div class="actions needs-edition" data-for="image">
+        <button id="pngBtn" class="cta" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
+          Download PNG
+        </button>
+        <button id="shareBtnImage" class="cta cta--ghost" type="button" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
+          Share
+        </button>
+      </div>
+      <div class="actions needs-edition" data-for="video" hidden>
+        <button id="mp4Btn" class="cta" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
+          MP4
+        </button>
+        <button id="shareBtn" class="cta cta--ghost" type="button" hidden>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4m0 0 4 4m-4-4-4 4"/><path d="M20 14v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-5"/></svg>
+          Share
+        </button>
+        <button id="gifBtn" class="cta cta--ghost" type="button">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M4 21h16"/></svg>
+          GIF
+        </button>
+      </div>
+      <p id="exportStatus" class="status" hidden></p>
+      <p class="ticket-line">Not registered yet? <a href="https://www.ddxconference.com" target="_blank" rel="noopener">Get your DDX ticket &rarr;</a></p>
+  </div>
   </section>
   </div>
 

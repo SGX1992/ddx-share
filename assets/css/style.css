@@ -56,6 +56,7 @@ img,canvas,svg{max-width:100%}
 .panel{grid-area:panel;display:flex;flex-direction:column;gap:18px;padding-top:8px}
 .preview{grid-area:preview;position:sticky;top:48px}
 .actions-area{grid-area:actions;display:flex;flex-direction:column;gap:12px}
+.actions-bar{display:contents}
 
 /* ---------- brand ----------
    Its own grid area rather than a child of the panel: on phones the panel
@@ -340,22 +341,28 @@ dialog::backdrop{background:rgba(0,0,0,.72)}
   /* The one part of the page that says what you actually get. It sat at the
      bottom of a column that scrolls, so on a short window it was never on
      screen at the moment someone decided whether the poster was finished.
-     Now it rides along, over a blur so the fields passing underneath stay
-     legible as texture without competing with the buttons. */
+
+     Full-bleed and fixed, so it is over everything rather than inside one
+     column — which is also the only way the sign-up link gets the far right of
+     the page rather than the far right of a 400px column, where it simply
+     wrapped under the button. */
   .actions-area{
-    position:sticky;bottom:0;z-index:3;
-    margin:0 -16px;padding:14px 16px 16px;
+    position:fixed;left:0;right:0;bottom:0;z-index:20;
+    display:block;margin:0;padding:0;
     background:rgba(5,5,5,.7);
     backdrop-filter:blur(16px) saturate(140%);
     -webkit-backdrop-filter:blur(16px) saturate(140%);
     border-top:1px solid rgba(255,255,255,.07);
-    border-radius:14px 14px 0 0;
-    /* One row: what you get on the left, the way in on the right. It wraps
-       rather than squeezing when the video exports put three buttons in the
-       bar, and the auto margin keeps the link right-aligned either way. */
-    flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 14px;
   }
-  .actions-area .ticket-line{margin-left:auto;margin-top:0}
+  /* Same measure and gutters as .layout, so the buttons start where the panel
+     starts and the link ends where the poster ends. */
+  .actions-bar{
+    display:flex;align-items:center;flex-wrap:wrap;gap:10px 16px;
+    max-width:1240px;margin:0 auto;padding:12px clamp(20px,5vw,72px);
+  }
+  .actions-bar .ticket-line{margin-left:auto;margin-top:0}
+  /* Room under the fold for the bar, or it covers the end of the panel. */
+  .layout{padding-bottom:112px}
 }
 
 @media (max-width:880px){
